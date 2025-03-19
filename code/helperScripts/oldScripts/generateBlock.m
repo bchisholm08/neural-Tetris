@@ -18,7 +18,7 @@ function [blockMatrix, colorIndex] = generateBlock(useRandomRotation)
     blockMatrix = blocks{randIndex};
     colorIndex = randIndex;  % same index to pick color
 
-    % (New) Optionally rotate the block randomly if requested
+    % optionally rotate blocks 
     if useRandomRotation
         rotations = randi(4)-1;  % 0 to 3
         for i = 1:rotations
