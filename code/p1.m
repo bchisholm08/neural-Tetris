@@ -21,7 +21,7 @@ try
         [ioObj, address, eyetracker] = initDataTools();
     else
         ioObj = []; address = []; eyetracker = [];
-        warning("Tobii and/or Biosemi not found for data collection. \n Is demo mode on? ")
+        warning("Tobii and Biosemi not connected for data collection.\n\nIs demo mode on?");
     end
 
     % Create directory structure
@@ -40,11 +40,11 @@ try
 
     %% Add in instruction screen(s), and practice blocks...
     p1instruct(window, params);
-
+    %FIXME add practice blocks and practice instructions? 
     pieces = getTetrino(params);
     nPieces = 7; % standard tetrino 
     s1nBlocks = 2; 
-    s1presentationsPerBlock = 20;
+    s1presentationsPerBlock = 5;
 
     data = struct('block', [], 'trial', [], 'piece', [], 'onset', []);
     for block = 1:s1nBlocks
@@ -88,7 +88,11 @@ try
     %% Save Section 1 data
     saveDat('p1', subjID, data, params, demoMode);
 
-    %% Add in instruction screen(s), and practice blocks
+    helperScriptsPath = fullfile(fileparts(mfilename('fullpath')), 'helperScripts');
+    addpath(helperScriptsPath);
+    %% S2 instruction screen 
+    %FIXME add practice blocks and practice instructions? 
+    s2instruct(window, params);
 
     %% Section 2: Tableaus
     fprintf('\n=== Running Section 2 ===\n');
@@ -103,7 +107,7 @@ try
 
         for t = 1:s2PresentationsPerBlock  % 30 trials per block
             %% Present tableau
-            draw_tableau(window, currentTableau, params);
+            getTableaus(window, currentTableau, params);
             [~, tabOnset] = Screen('Flip', window);
 
             %% Present piece
