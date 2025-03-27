@@ -3,12 +3,18 @@ function p1()
 clear;
 close all;
 sca;
+    %{
+    ==========================
+    %% S1
+    ==========================
+    %}
 helperScriptsPath = fullfile(fileparts(mfilename('fullpath')), 'helperScripts');
 addpath(helperScriptsPath);
 
-% run the tableau script to load into environment 
+% run the tableau script to pre-load them into environment 
 tableau;
-try
+
+try % ends 144, main trial loop? 
     % Subject input
     subjID = input('Enter subject ID (e.g., P01): ', 's');
     demoMode = input('Enable demo mode? (1 = yes, 0 = no): ');
@@ -21,11 +27,12 @@ try
         [ioObj, address, eyetracker] = initDataTools();
     else
         ioObj = []; address = []; eyetracker = [];
-        warning("Tobii and Biosemi not connected for data collection.\n\nIs demo mode on?");
+        warning("Tobii and Biosemi not found for data collection.\nIs demo mode on (do you want it to be?)?");
     end
 
     % Create directory structure
-    baseDataDir = 'C:\Users\chish071\Desktop\tetris\data';
+    % original path baseDataDir = 'C:\Users\chish071\Desktop\tetris\data';
+    % try to use relative not absolute paths so this program doesn't crash 
     rootDir = fullfile(baseDataDir, 'subjData', subjID);
     if ~exist(rootDir, 'dir')
         mkdir(rootDir);
@@ -42,7 +49,7 @@ try
     p1instruct(window, params);
     %FIXME add practice blocks and practice instructions? 
     pieces = getTetrino(params);
-    nPieces = 7; % standard tetrino 
+    nPieces = 7; % standard # of tetrino 
     s1nBlocks = 2; 
     s1presentationsPerBlock = 5;
 
@@ -78,36 +85,43 @@ try
             Screen('Flip', window);
             WaitSecs(0.7 + rand*0.4);  % 800-1200ms ITI
         end
-
         %% Break between blocks
         if block < s1nBlocks
             take5Brubeck(window, params); 
         end
-    end
-
+    end % S1 block end 
     %% Save Section 1 data
     saveDat('p1', subjID, data, params, demoMode);
 
+% ============================
+% ============================
+% ============================
+% ============================
+
     helperScriptsPath = fullfile(fileparts(mfilename('fullpath')), 'helperScripts');
     addpath(helperScriptsPath);
-    %% S2 instruction screen 
-    %FIXME add practice blocks and practice instructions? 
-    s2instruct(window, params);
+%{
+==========================
+%% S2  
+==========================
+%}
+   
+    p2instruct(window, params);
 
-    %% Section 2: Tableaus
+    %% Section 2: Tableaus and contexts 
     fprintf('\n=== Running Section 2 ===\n');
     tableaus = getTableaus(); 
     s2nBlocks = 2;
-    s2PresentationsPerBlock = 10;
+    s2PresentationsPerBlock = 5;
 
     s2TotalTrials = s2nBlocks * s2PresentationsPerBlock;
     for block = 1:s2nBlocks
         currentTableau = tableaus(block);
         blockData = struct('block', block, 'trials', []);
 
-        for t = 1:s2PresentationsPerBlock  % 30 trials per block
+        for t = 1:s2PresentationsPerBlock  
             %% Present tableau
-            getTableaus(window, currentTableau, params);
+            getTableaus();
             [~, tabOnset] = Screen('Flip', window);
 
             %% Present piece
@@ -133,10 +147,10 @@ try
     if ~demoMode
         tetio_disconnectTracker();
     end
-    sca;
+    sca; 
 
 catch ME
-    sca;          % Close PTB
+    sca;          % Close PTB, screan clear 
     Priority(0);  % Reset priority of matlab
     ShowCursor;   % Restore cursor
     rethrow(ME);  % Show error details

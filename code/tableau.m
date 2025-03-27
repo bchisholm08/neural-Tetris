@@ -90,10 +90,10 @@ board = ones(board_height, board_width);
 tableaus(end+1) = struct('piece', piece, 'board', board, 'condition', 'garbage');
 
 %%
-% ------------- S/Z-Pieces (Mirrored) -------------
-% Repeat the same logic for S and Z pieces with mirrored configurations
-% ...
+% ------------- S -------------
 
+%%
+% ------------- Z -------------
 %%
 % Save all tableaus
 save('tableaus.mat', 'tableaus');

@@ -20,6 +20,9 @@ screenNumber = max(screens);
 % def experiment params 
 params = struct();
 params.window = window; % MUST pass window handle %FIXME 3.19.25
+params.fixation.size = 20; % Fixation size in pixels
+params.fixation.color = [255 255 255]; % White color
+params.fixation.type = 'cross'; % Draw a fixation cross
 params.colors.background = [0 0 0];
 params.colors.piece = [0.5 0.5 0.5];
 [params.screen.width, params.screen.height] = Screen('WindowSize', window);
