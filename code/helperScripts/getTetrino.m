@@ -1,5 +1,5 @@
 function pieces = getTetrino(params)
-    % Define Tetrino pieces with segmented blocks
+    % Generates tetrinos based on input & experiment parameters 
     shapes = {
         [1 1 1 1],        % I (4x1)
         [1 1; 1 1],       % O (2x2)
@@ -11,8 +11,9 @@ function pieces = getTetrino(params)
     };
     
     pieces = struct('tex', {});
-    blockSize = 30; % Each block is 30x30 pixels
-    border = 1;     % 1-pixel border
+    % editing pixel size manually 
+    blockSize = 40; % Each block is 30x30 pixels 
+    border = 2;     % 1-pixel border
     
     for p = 1:length(shapes)
         shape = shapes{p};

@@ -1,13 +1,34 @@
 function p1()
-%  clean slate
-clear;
-close all;
+
+clear all;
 sca;
-    %{
-    ==========================
+
+% In CATSS, there are some functions in this folder that
+% interfere with this experiment (e.g., apclab's hann function)
+if isfolder('C:\CATSS_Booth2')
+    rmpath('C:\CATSS_Booth2');
+end
+
+if isfolder('R:\cla_psyc_oxenham_labscripts\scripts\')
+    rmpath('R:\cla_psyc_oxenham_labscripts\scripts\')
+end
+
+if isfolder('P:\scripts') || isfolder('P:\afc\scripts')
+    rmpath(genpath('P:\scripts'));
+    rmpath('P:\afc\scripts');
+end
+
+%% Set up some eyetracker stuff (JM)
+trackingMode = 'human'; % For Tobii Pro Spectrum ['human', 'monkey', 'great_ape']; changes the illumination model of Tobii.
+whichTracker = 'Tobii Pro Spectrum'; 
+eyetrackerSamplerate = 300; % familiar with 300hz, but 
+% not sure if there is any methodological reason for it. Would really like to know (from a kines. or something) the time scale that pupil dialation occurs at. Could email an expert 
+ 
+%{
+=================================
     %% S1
-    ==========================
-    %}
+=================================
+%}
 helperScriptsPath = fullfile(fileparts(mfilename('fullpath')), 'helperScripts');
 addpath(helperScriptsPath);
 
@@ -137,6 +158,10 @@ try % ends 144, main trial loop?
             WaitSecs(0.1);
             Screen('Flip', window);
             WaitSecs(0.7 + rand*0.4);
+        end
+         %% Break between blocks
+        if block < s2nBlocks
+            take5Brubeck(window, params); 
         end
 
         %% Save block data
