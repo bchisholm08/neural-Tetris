@@ -1,0 +1,29 @@
+function showInstructions(windowPtr)
+    if isempty(windowPtr) || windowPtr <= 0
+        error('Invalid windowPtr received in showInstructions.');
+    end
+
+    instructionsText = [ ...
+        'Welcome to Tetris!\n\n' ...
+        'Controls:\n' ...
+        '  Left Arrow  - Move piece left\n' ...
+        '  Right Arrow - Move piece right\n' ...
+        '  Down Arrow  - Soft drop\n' ...
+        '  Up Arrow    - Rotate piece\n' ...
+        '  P           - Pause game\n' ...
+        '  ESC         - Quit\n\n' ...
+        'Press any key to proceed...'];
+%{
+Obviously these instructions are not sufficient for the experiment. I hope to
+just add more screens (almost a slideshow..) later once we settle on
+methods and the flow of the experiment 
+%}
+    % initialize text size 
+    Screen('TextSize', windowPtr, 24);
+
+    DrawFormattedText(windowPtr, instructionsText, 'center', 'center', [255 255 255]);
+    Screen('Flip', windowPtr);
+
+    % Wait for a key press
+    KbWait;
+end
