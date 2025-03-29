@@ -1,4 +1,10 @@
 *.asv
 *.mat
+*gitignore
+*.DS_Store
+/tools/
+/.git/
+/tdtTools/
+/Psychtoolbox/
 /data/
 /misc/

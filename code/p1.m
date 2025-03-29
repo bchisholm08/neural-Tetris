@@ -1,10 +1,42 @@
 function p1()
 
+
+%{ 
+Goal of p1() is to......
+
+1) Gather subject ID and create folder / directory for them 
+
+2) Connect to, calibrate, and utilize eye tracking data 
+
+3) Connect to and trigger BioSemi EEG system (Using TDT)
+
+4) P1() EXPERIMENT
+    Display 7 tetris pieces in a block / trial loop, using a mean ITI 1sec 
+    
+    During experiment:
+        send TDT triggers for EEG 
+        record eye tracking data 
+        
+    Implement a demoMode that lets us test the behavioral section of the
+    experiment. This should bypass tobii and EEG, but 
+
+%} 
 clear all;
 sca;
 
-% In CATSS, there are some functions in this folder that
-% interfere with this experiment (e.g., apclab's hann function)
+%{
+===============
+S1 & S2 OPTIONS
+===============
+%} 
+    s1nBlocks = 2; 
+    s1presentationsPerBlock = 3;
+
+    s2nBlocks = 2;
+    s2PresentationsPerBlock = 3;
+%============================================================
+
+% In CATSS, some functions that can interfere 
 if isfolder('C:\CATSS_Booth2')
     rmpath('C:\CATSS_Booth2');
 end
@@ -18,27 +50,100 @@ if isfolder('P:\scripts') || isfolder('P:\afc\scripts')
     rmpath('P:\afc\scripts');
 end
 
-%% Set up some eyetracker stuff (JM)
-trackingMode = 'human'; % For Tobii Pro Spectrum ['human', 'monkey', 'great_ape']; changes the illumination model of Tobii.
-whichTracker = 'Tobii Pro Spectrum'; 
-eyetrackerSamplerate = 300; % familiar with 300hz, but 
-% not sure if there is any methodological reason for it. Would really like to know (from a kines. or something) the time scale that pupil dialation occurs at. Could email an expert 
- 
 %{
 =================================
-    %% S1
+    %% S1 %%
 =================================
 %}
-helperScriptsPath = fullfile(fileparts(mfilename('fullpath')), 'helperScripts');
-addpath(helperScriptsPath);
 
-% run the tableau script to pre-load them into environment 
+% Get the path of the current script
+currentScriptPath = mfilename('fullpath');
+
+% Get the folder containing the current script
+codeFolder = fileparts(currentScriptPath); 
+
+% Go up one level from /code/
+mainFolder = fileparts(codeFolder); 
+
+% Define paths to the helperScripts and dataCollection folders
+helperScriptsPath = fullfile(mainFolder, 'code', 'helperScripts');
+baseDataDir = fullfile(mainFolder, 'data');
+
+% Add both folders to the MATLAB path
+addpath(helperScriptsPath, baseDataDir);
+
+% Display confirmation
+disp(['Added to path: ', helperScriptsPath]);
+disp(['Added to path: ', baseDataDir]);
+
+% run the tableau script to pre-load into environment 
 tableau;
 
 try % ends 144, main trial loop? 
     % Subject input
     subjID = input('Enter subject ID (e.g., P01): ', 's');
     demoMode = input('Enable demo mode? (1 = yes, 0 = no): ');
+
+%{ 
+%% IN P1(); CALIBRATE EYETRACKER AND HANDLE DEMO MODE AND EEG 
+
+Take demoMode input (1/0) and deal with Tobii, TDT, and Biosemi/EEG 
+
+When demoMode = 0;
+- Use 
+
+
+When demoMode = 1; 
+
+%} 
+
+%% Set up some eyetracker stuff
+trackingMode = 'human'; % For Tobii Pro Spectrum ['human', 'monkey', 'great_ape']; changes the illumination model of Tobii.
+whichTracker = 'Tobii Pro Spectrum'; 
+eyetrackerSamplerate = 300; % familiar with 300hz, but 
+
+%{
+=================================
+Here I think I should do an overall calibration before 
+anything else. Establishing and setting up Tobii / Tita here 
+may be most convienent 
+ 
+=================================
+%}
+
+%{
+JM set up example 
+
+
+if demoMode
+    keepGoing = getUserInput('You are using demo mode, want to continue anyway? (0 = no, 1= yes): ',[],[0 1]);
+    
+    if keepGoing ~=1
+        error('Experiment terminated. Regular mode desired, but demo mode is active');
+    end
+end
+z
+if ~useEEG
+    %     addpath('M:\Experiments\Juraj\TDT_Emulator');
+    addpath('M:\Experiments\Juraj\TDT_Emulator_PPA');
+else
+    rmpath('M:\Experiments\Juraj\TDT_Emulator_PPA'); % just in case the emulator is in the path, remove it.
+    %     addpath([pwd filesep 'AudioControllerEdit']); % this is where the edited m file for audiocontroller lives. It needs its own folder so that it doesn't overshadow the emulator
+
+    if ~exist('AudioController', 'file')
+        addpath('C:\expFun')
+    end
+    
+end
+%} 
+
+
+% unsure if there is any methodological reason for 300Hz sampling. Would really like to know (from  kines. or something) the time scale 
+% that pupil dialation occurs at. Could email a UMN expert 
+%} 
+
+
+
 
     % Initialize experiment
     [window, windowRect, params] = initExperiment(subjID, demoMode);
@@ -48,7 +153,9 @@ try % ends 144, main trial loop?
         [ioObj, address, eyetracker] = initDataTools();
     else
         ioObj = []; address = []; eyetracker = [];
-        warning("Tobii and Biosemi not found for data collection.\nIs demo mode on (do you want it to be?)?");
+        warning("Tobii and Biosemi not found for data collection. Is demo mode on (do you want it to be?)?");
+        dbstop if error % pause on errors when we're in demo mode 
+        % dbstop if warning % akin for warnings 
     end
 
     % Create directory structure
@@ -71,8 +178,7 @@ try % ends 144, main trial loop?
     %FIXME add practice blocks and practice instructions? 
     pieces = getTetrino(params);
     nPieces = 7; % standard # of tetrino 
-    s1nBlocks = 2; 
-    s1presentationsPerBlock = 5;
+% s1 trial / block options used to be here, moved up to top of script
 
     data = struct('block', [], 'trial', [], 'piece', [], 'onset', []);
     for block = 1:s1nBlocks
@@ -84,6 +190,7 @@ try % ends 144, main trial loop?
             %% Fixation
             Screen('FillRect', window, params.colors.background);
             fixationOnset = Screen('Flip', window);
+            drawFixation('FillRect', window, params.colors.background);
 
             %% Present piece
             pieceID = pieceOrder(t);  % Use actual piece ID
@@ -132,9 +239,8 @@ try % ends 144, main trial loop?
     %% Section 2: Tableaus and contexts 
     fprintf('\n=== Running Section 2 ===\n');
     tableaus = getTableaus(); 
-    s2nBlocks = 2;
-    s2PresentationsPerBlock = 5;
-
+    % s2 trial / block options used to be here, moved up to top of script
+    
     s2TotalTrials = s2nBlocks * s2PresentationsPerBlock;
     for block = 1:s2nBlocks
         currentTableau = tableaus(block);
@@ -179,5 +285,13 @@ catch ME
     Priority(0);  % Reset priority of matlab
     ShowCursor;   % Restore cursor
     rethrow(ME);  % Show error details
+
+    %this is a neat trick that can make matlab jump to a the line where the
+    %crash occurred:
+    hEditor = matlab.desktop.editor.getActive;
+    hEditor.goToLine(whathappened.stack(end).line)
+    commandwindow;
+    % Courtesy of JM :) 
+%=========================================================================
 end % try end
 end % funcEnd
