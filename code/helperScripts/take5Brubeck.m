@@ -1,15 +1,24 @@
 function take5Brubeck(window, params)
-    % Break parameters (customizable)
-    minBreakTime = 5;  % Minimum break time (seconds)
-    maxBreakTime = 300;  % Maximum break time (seconds)
+
+    % adjust these for real experiment, take note of changes in break time for MANUSCRIPT
+
+    % Break parameters (sec)
+    minBreakTime = 5;  
+    maxBreakTime = 300; 
     startTime = GetSecs;
     
     while GetSecs - startTime < maxBreakTime
+        % calculate some useful #'s 
         elapsed = GetSecs - startTime;
         remaining = max(minBreakTime - elapsed, 0);
         
-        % Display break message
-        breakText = sprintf('Take a break!\n\nTime remaining: %d seconds\n\nPress SPACE to continue.', ceil(remaining));
+        % break message, display 
+        breakText = sprintf(['Take a break!\n\n' ...
+    'Required Break Remaining: %d seconds\n' ...
+    ''...
+    'Maximum Break Time Remaining: %d seconds\n\n' ...
+    ''...
+    'Press SPACE to continue.'], ceil(remaining), ceil(maxBreakTime - elapsed));
         Screen('TextSize', window, 24);
         DrawFormattedText(window, breakText, 'center', 'center', [1 1 1]);
         
@@ -23,7 +32,7 @@ function take5Brubeck(window, params)
         
         Screen('Flip', window);
         
-        % Check for early exit (only allowed after minBreakTime)
+        % Check for early exit (only after minBreakTime)
         [~, ~, keyCode] = KbCheck;
         if elapsed >= minBreakTime && keyCode(KbName('Space'))
             break;

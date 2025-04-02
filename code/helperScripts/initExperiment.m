@@ -1,19 +1,15 @@
 function [window, windowRect, params] = initExperiment(subjID, demoMode)
-
 % Set sync test tolerance based on demoMode
 if demoMode
-    Screen('Preference', 'SkipSyncTests', 2); % Lenient checks
+    Screen('Preference', 'SkipSyncTests', 2); % Lenient
 else
-    Screen('Preference', 'SkipSyncTests', 0); % Strict checks
+    Screen('Preference', 'SkipSyncTests', 0); % Strict 
 end
-
 sca;
-
 % Init PTB
 PsychDefaultSetup(2);
 screens = Screen('Screens');
 screenNumber = max(screens);
-
 % open PTB window for config 
 [window, windowRect] = PsychImaging('OpenWindow', screenNumber, [0 0 0]);
 

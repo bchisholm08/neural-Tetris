@@ -7,8 +7,7 @@ function saveDat(section, subjID, data, params, demoMode)
     savePath = fullfile('Participants', subjID, section, filename);
     
     % Save data
-    version = '-v7.3';
-    save(savePath, 'data', 'params', version);
+    save(savePath, 'data', 'params', '-v7.3'); % -v7.3 for large gazeData  
     
     % Save hardware settings
     hwSettings = struct('ioAddress', params.ioAddress, 'tobiiSettings', params.eyetracker);

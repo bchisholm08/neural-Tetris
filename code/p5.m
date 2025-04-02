@@ -1,4 +1,4 @@
-function tetrisGame(params, subjID, demoMode)
+function p5(params, subjID, demoMode)
     % Initialize game state
     board = zeros(params.board.visible_height, params.board.width);
     score = 0;

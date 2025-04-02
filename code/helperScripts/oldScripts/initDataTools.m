@@ -1,4 +1,12 @@
-function [ioObj, address, eyetracker] = initDataTools()
+function [ioObj, address, eyetracker] = initDataTools(demoMode)
+   
+    if demoMode
+        ioObj = [];
+        address = [];
+        eyetracker = [];
+        return;
+    else
+
     % EEG Trigger Setup
     ioObj = io64;
     status = io64(ioObj);
@@ -14,4 +22,7 @@ function [ioObj, address, eyetracker] = initDataTools()
     else
         error('Eye tracker not found!');
     end
+
+    end
+return; 
 end
