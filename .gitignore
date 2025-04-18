@@ -4,6 +4,8 @@
 *.DS_Store
 /tools/
 /.git/
+/postExp/preProcData/
+/postExp/preProcTools/
 /tdtTools/
 /Psychtoolbox/
 /data/
