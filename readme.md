@@ -60,19 +60,111 @@ p4(subjID, demoMode);
 Adjust `subjID` for each participant. Ensure you call `initExperiment` within each script to handle synchronization and calibration.
 
 ## Scripts & Functions
-| Script/Function        | Description                                                |
-|------------------------|------------------------------------------------------------|
-| `p1.m`                 | Part 1: Basic piece presentation (Alone)                   |
-| `p2.m`                 | Part 2: Piece in tableau context                           |
-| `p4.m`                 | Part 4: 4‑AFC piece–tableau matching                       |
-| `initExperiment.m`     | Initializes PTB window, EEG, and eye‑tracker calibration   |
-| `getTetrino.m`         | Generates Tetris piece textures                            |
-| `getTrig.m`            | Maps piece + condition to EEG trigger codes                |
-| `loadPupilData.m`      | Loads and optionally plots preprocessed pupil traces       |
-| `preprocessGazeData.m` | Cleans, smooths, and timestamps gaze data                  |
-| `calibrateTobii.m`     | Runs screen-based calibration routine                      |
-| `saveDat.m`            | Saves behavioral and pupilometry data                      |
-| Utility scripts        | Fixation cross, instructions screens, break timers, etc.   |
+## Experiment Function Reference
+
+### humanTetrisWrapper
+**Inputs:** `subjID`  
+**Outputs:** _None_  
+**Purpose:** A clean wrapper for the experiment. Passes `subjID` to `p1()`, `p2()`, etc., so the experimenter can run just this one function.  
+**Notes:** Calls `breakScreen` between sections.
+
+### p1() and p1Instruct() :contentReference[oaicite:0]{index=0}&#8203;:contentReference[oaicite:1]{index=1}&#8203;:contentReference[oaicite:2]{index=2}&#8203;:contentReference[oaicite:3]{index=3}
+**Inputs:** _None_  
+**Outputs:** _None_  
+**Purpose:** Facilitates section one of the experiment (piece presentation alone).  
+**Notes:** Uses `p1Instruct()` to display instructions.
+
+### p2() and p2Instruct() :contentReference[oaicite:4]{index=4}&#8203;:contentReference[oaicite:5]{index=5}&#8203;:contentReference[oaicite:6]{index=6}&#8203;:contentReference[oaicite:7]{index=7}
+**Inputs:** _None_  
+**Outputs:** _None_  
+**Purpose:** Facilitates section two of the experiment (piece in tableau context).  
+**Notes:** Uses `p2Instruct()` to display instructions.
+
+### p3() and p3Instruct()
+**Inputs:** _None_  
+**Outputs:** _None_  
+**Purpose:** Facilitates section three of the experiment (interactive matching without reward).  
+**Notes:** Uses `p3Instruct()` to display instructions.
+
+### p4() and p4Instruct() :contentReference[oaicite:8]{index=8}&#8203;:contentReference[oaicite:9]{index=9}&#8203;:contentReference[oaicite:10]{index=10}&#8203;:contentReference[oaicite:11]{index=11}
+**Inputs:** _None_  
+**Outputs:** _None_  
+**Purpose:** Facilitates section four of the experiment (4-AFC piece–tableau matching).  
+**Notes:** Uses `p4Instruct()` to display instructions.
+
+### p5() and p5Instruct()
+**Inputs:** _None_  
+**Outputs:** _None_  
+**Purpose:** Facilitates section five of the experiment (final integration).  
+**Notes:** Uses `p5Instruct()` to display instructions.
+
+---
+
+### calibrateTobii :contentReference[oaicite:12]{index=12}&#8203;:contentReference[oaicite:13]{index=13}
+| Input        | Type    | Description                            |
+| ------------ | ------- | -------------------------------------- |
+| `window`     | Handle  | PTB window pointer                     |
+| `windowRect` | Rect    | PTB window rectangle                   |
+| `eyetracker` | Object  | Tobii eyetracker handle                |
+| `params`     | Struct  | Experiment parameters                  |
+
+**Outputs:**  
+- `calibrationData` (struct): Contains calibration results if saved.  
+
+**Purpose:** Performs native Tobii calibration, then offers recalibration or save options at the end.
+
+---
+
+### drawFixation :contentReference[oaicite:14]{index=14}&#8203;:contentReference[oaicite:15]{index=15}
+**Inputs:** `window`, `windowRect`, `color`  
+**Outputs:** _None_  
+**Purpose:** Draws a horizontal and vertical line at the center of the screen as a fixation cross.
+
+---
+
+### getTableaus
+**Inputs:** _None_  
+**Outputs:** _None_  
+**Purpose:** Defines and generates all Tetris tableaux textures for context trials.  
+**Notes:** Should build a `struct()` of textures; consider offloading heavy logic from `pX` scripts.
+
+---
+
+### getTetrino :contentReference[oaicite:16]{index=16}&#8203;:contentReference[oaicite:17]{index=17}
+**Inputs:** `params`  
+**Outputs:** `pieces` (struct array)  
+**Purpose:** Creates Tetris piece textures and metadata in a struct for presentation.
+
+---
+
+### getTrig :contentReference[oaicite:18]{index=18}&#8203;:contentReference[oaicite:19]{index=19}
+**Inputs:** `piece`, `eventType`  
+**Outputs:** `trig` (integer)  
+**Purpose:** Maps a Tetris piece and event type to an EEG trigger code.
+
+---
+
+### initExperiment :contentReference[oaicite:20]{index=20}&#8203;:contentReference[oaicite:21]{index=21}
+**Inputs:** `subjID`, `demoMode`, `baseDataDir`  
+**Outputs:** `window`, `windowRect`, `expParams`, `ioObj`, `address`, `eyetracker`  
+**Purpose:** Initializes Psychtoolbox, sync tests, experiment parameters, EEG I/O, and eye-tracker connection/calibration.
+
+---
+
+### saveDat :contentReference[oaicite:22]{index=22}&#8203;:contentReference[oaicite:23]{index=23}
+**Inputs:** `section`, `subjID`, `data`, `params`, `demoMode`  
+**Outputs:** _None_  
+**Purpose:** Saves behavioral and pupillometry data (or demo log) to organized subject folders.  
+**Notes:** Complex logic — may simplify with MATLAB’s `save()`.
+
+---
+
+### take5Brubeck :contentReference[oaicite:24]{index=24}&#8203;:contentReference[oaicite:25]{index=25}
+**Inputs:** `window`, `params`  
+**Outputs:** _None_  
+**Purpose:** Displays a break screen between blocks with a progress bar.  
+```markdown
+
 
 ## Data Output
 Each section saves `.mat` files under:
