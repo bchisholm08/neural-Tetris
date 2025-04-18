@@ -106,7 +106,7 @@ for t = 1:length(tableaus)
         tableaus(t).rect = tableauRect;
     end
 
-    %% ==== Add garbage tableau for each piece ====
+    % add garbage tableau to each of the 7 pieces 
     pieceNames = {'I', 'Z', 'O', 'S', 'J', 'L', 'T'};
     garbageBoard = ones(4, 10);  % fully filled board
 
@@ -120,7 +120,7 @@ for t = 1:length(tableaus)
         );
     end
 
-    %% ==== Render PTB textures for garbage tableaus ====
+    % get PTB garb textures 
     newStartIdx = length(tableaus) - length(pieceNames) + 1;
     for t = newStartIdx:length(tableaus)
         board = tableaus(t).board;
@@ -151,6 +151,6 @@ for t = 1:length(tableaus)
         tableaus(t).rect = tableauRect;
     end
 
-    %% Optional save to file
+% save 
     save('tableaus.mat', 'tableaus');
 end

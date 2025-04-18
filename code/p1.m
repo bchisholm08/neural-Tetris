@@ -1,4 +1,4 @@
-function p1()
+function p1(subjID, demoMode)
 % piece presentation
 sca;
 
@@ -30,7 +30,13 @@ Inter-trial intervals will be random (uniform distribution), between 800ms - 120
 60 repetitions of each piece x 7 pieces x 1100 ms (presentation + ITI) = ~5.5 minutes. 
 
 %}
-
+ % allow wrapper to supply subjID/demoMode, otherwise default
+if nargin < 1
+subjID = input('Enter a subjID (e.g. ''P01''): ', 's');
+end
+if nargin < 2
+demoMode = 1;   % default to demo mode
+end
 %==================
 % TRIALS AND BLOCKS 
 s1nBlocks = 4;
@@ -72,8 +78,7 @@ disp(['Added to path:', eegHelperPath]);
 % get some experimenter inputs
 % decMode = input('Is Biosemi set to "DECIMAL" for data collection? (1 = yes, 0 = no): ');
 % also add in table power cable check 
-subjID = input('Enter a subjID: ', 's');
-demoMode = input('Enable demo mode? (1 = yes, 0 = no): ');
+
 
 % Create directory structure
 % original path baseDataDir = 'C:\Users\chish071\Desktop\tetris\data';

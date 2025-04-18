@@ -1,25 +1,80 @@
 function humanTetrisWrapper(subjID)
-% this function will ultimately use the subj id (and maybe demoMode and/or params) as an
-% input to call p1(), p2(), etc... 
-% may included other 'helper' type things, but pretty simple overall
 
-% use interExp(subjID) to simply displays a screen and begins an
-% internal timer to record how long of a break we take between p1(), p2() etc... 
+    if nargin < 1
+        subjID = input('Enter subject ID (e.g., ''P01''): ', 's');
+    end
 
-p1(subjID);
-% interExp(subjID)
+    try
+        % Part 1: Piece presentation
+        p1(subjID);                            
+        interExp;
 
-p2(subjID);
-% interExp(subjID)
+        % Part 2: Piece + tableau
+        p2(subjID);                           
+        interExp;
 
-p3(subjID);
-% interExp(subjID)
+        % Part 3
+        % p3(subjID);
+        interExp;
 
-p4(subjID);
-% interExp(subjID)
+        % % Part 4: 4‑AFC matching
+        p4(subjID);
+        interExp;
 
-p5(subjID);
-% interExp(subjID)
+        % Part 5: play tetris
+        % p5(subjID);
+        
+        showEndScreen;
 
-% end screen? () 
-end 
+    catch ME
+        % make PTB clean up 
+        sca; ShowCursor; Priority(0);
+        clear("Screens")
+        rethrow(ME);
+    end
+end
+
+
+function interExp()
+    PsychDefaultSetup(2);
+    screens    = Screen('Screens');
+    screenNum  = max(screens);
+    [win, ~]  = PsychImaging('OpenWindow', screenNum, 0.5);  % gray bg
+    Screen('TextSize', win, 28);
+    DrawFormattedText(...
+        win, ...
+        'Take a break! \n\nPress SPACE to continue.', ...
+        'center', 'center', [255 255 255]);
+    Screen('Flip', win);
+    KbName('UnifyKeyNames');
+    spaceKey = KbName('SPACE');
+    while true
+        [keydown, ~, keyCode] = KbCheck;
+        if keydown && keyCode(spaceKey)
+            break;
+        end
+    end
+    sca;
+end
+
+function showEndScreen()
+    PsychDefaultSetup(2);
+    screens    = Screen('Screens');
+    screenNum  = max(screens);
+    [win, ~] = PsychImaging('OpenWindow', screenNum, 0.5);
+    Screen('TextSize', win, 28);
+    DrawFormattedText(...
+        win, ...
+        'Experiment complete! \n\nThank you for your participation. \n\nPress SPACE to exit.', ...
+        'center', 'center', [255 255 255]);
+    Screen('Flip', win);
+    KbName('UnifyKeyNames');
+    spaceKey = KbName('SPACE');
+    while true
+        [keydown, ~, keyCode] = KbCheck;
+        if keydown && keyCode(spaceKey)
+            break;
+        end
+    end
+    sca;
+end

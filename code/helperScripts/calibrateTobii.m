@@ -1,11 +1,4 @@
 function calibrationData = calibrateTobii(window, windowRect, eyetracker, params)
-%% calibrateTobiiNative
-% Performs Tobii calibration using *native* Tobii methods (ScreenBasedCalibration),
-% replicating the logic from the Gabor experiment snippet, but with:
-%  - A welcome screen before calibration.
-%  - A loop allowing Recalibration or Save.
-%  - Esc to abort at any major prompt.
-%
 % Inputs:
 %   window     : Psychtoolbox onscreen window pointer.
 %   windowRect : [left top right bottom] rect from Screen.
@@ -15,12 +8,12 @@ function calibrationData = calibrateTobii(window, windowRect, eyetracker, params
 %   calibrationData : struct containing final calibration result if saved.
 %                     Returns empty if the user aborts or never saves.
 
-%% ---------------- Setup Colors, Keys, and Basic PTB Info ----------------
+%% ---------------- Setup Colors, Keys, and PTB Info ----------------
 HideCursor(window);
 Screen('TextFont', window, 'Arial');
 Screen('TextSize', window, 24);
 
-% Colors (PTB expects 0-1 range if you use normalized mode)
+% Colors (PTB 0-1 range)
 white = [1, 1, 1];
 bgColor = [0, 0, 0];
 redColor = [1, 0, 0];
@@ -41,7 +34,7 @@ innerDotSize = dotSizePix * 0.5;
 calibrationData = struct();
 calibrationSaved = false;
 
-%% ----------------- Wait & Loop for Recalibration Requests -----------------
+%% ----------------- Do loop recal -----------------
 calibrateAgain = true;
 try
     while calibrateAgain
@@ -98,7 +91,7 @@ points_to_calibrate = [
 % Enter calibration mode
 calib.enter_calibration_mode();
 
-% For each calibration point, show dot, then collect data
+% For each calibration point, show dot & collect data
 [screenXpixels, screenYpixels] = Screen('WindowSize', window);
 for i = 1:size(points_to_calibrate,1)
     pt = points_to_calibrate(i,:);
@@ -109,7 +102,7 @@ for i = 1:size(points_to_calibrate,1)
     Screen('DrawDots', window, pt.*[screenXpixels, screenYpixels], innerDotSize, white, [], 2);
     Screen('Flip', window);
     
-    pause(1);  % wait for user to focus on the point
+    pause(1);  % wait for user to fixate; pile data 
     
     % Collect data for that point
     status = calib.collect_data(pt);
@@ -119,11 +112,10 @@ for i = 1:size(points_to_calibrate,1)
     end
 end
 
-% Show a "Calculating" message
 DrawFormattedText(window, 'Calculating calibration result....', 'center', 'center', white);
 Screen('Flip', window);
 
-% Compute and apply the calibration
+% apply calibration
 calibration_result = calib.compute_and_apply();
 
 % Exit calibration mode

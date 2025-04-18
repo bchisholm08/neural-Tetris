@@ -1,11 +1,7 @@
 function allTrials = loadPupilData(subjID, baseDataDir, doPlot)
-% loadAllPupilData loads and optionally plots pupil data from trialData files
-%
-% USAGE:
 %   allTrials = loadAllPupilData('P01');                    % No plotting
 %   allTrials = loadAllPupilData('P01', '/path/to/data');   % No plotting
 %   allTrials = loadAllPupilData('P01', [], true);          % With plotting
-%
 % INPUTS:
 %   subjID       : string (e.g., 'P01')
 %   baseDataDir  : optional string (defaults to pwd/data)
@@ -49,7 +45,7 @@ end
 fprintf('All Trials Loaded for %s | Trials = %d', subjID, nFiles);
 
 % -------------------------
-% Optional Plotting
+% Opt. Plotting
 % -------------------------
 if doPlot
     figure('Name', sprintf('Pupil Traces: %s', subjID), 'Color', 'w'); hold on;

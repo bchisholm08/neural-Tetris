@@ -1,7 +1,5 @@
 function pieces = getTetrino(params)
-    % Generates tetrinos based on your specific piece ID mapping
-    
-    % Match your piece ID order exactly:
+    % PIECE IDS
     % I = 1, Z = 2, O = 3, S = 4, J = 5, L = 6, T = 7
     shapes = {
         [1 1 1 1];               % I (pID = 1)
@@ -23,7 +21,7 @@ function pieces = getTetrino(params)
         shape = shapes{p};
         [height, width] = size(shape);
 
-        % Initialize image with background color (black)
+        % image with black background color
         img = zeros(height * blockSize, width * blockSize, 3);
 
         for row = 1:height
@@ -43,7 +41,7 @@ function pieces = getTetrino(params)
 
         pieces(p).tex = Screen('MakeTexture', params.window, img);
         pieces(p).rect = [0 0 width * blockSize height * blockSize];
-        pieces(p).pID = p;                % Your defined piece ID
-        pieces(p).name = pieceNames{p};   % Optional human-readable label
+        pieces(p).pID = p;                % define piece ID
+        pieces(p).name = pieceNames{p};   % letter '' label
     end
 end

@@ -1,7 +1,5 @@
 function take5Brubeck(window, params)
 
-    % adjust these for real experiment, take note of changes in break time for MANUSCRIPT
-
     % Break parameters (sec)
     minBreakTime = params.rule.minBreakTime;  
     maxBreakTime = params.rule.maxBreakTime; 

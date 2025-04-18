@@ -16,14 +16,14 @@ function saveDat(section, subjID, data, params, demoMode)
 
     % ========== DEMO MODE LOGGING ========== 
     if demoMode
-        % We'll write a small text log to note that "DemoMode = ON"
+        % note demo mode 
         logFile = fullfile(rootDir, 'misc', sprintf('demoLog_%s.txt', params.timestamp));
 
-        % Make sure the folder exists
+        % check folder ex 
         miscDir = fileparts(logFile);
         if ~exist(miscDir, 'dir'), mkdir(miscDir); end
 
-        % Open the log file safely, checking for errors
+        % open log 
         fid = fopen(logFile, 'w');
         if fid == -1
             error('Could not open demo log file for writing: %s', logFile);
@@ -35,23 +35,18 @@ function saveDat(section, subjID, data, params, demoMode)
 
     % ========== ACTUAL DATA SAVE (non-demo) ========== 
     else
-        % Construct a date string for filename, e.g. mmddyy or yyyymmdd
+        % Construct date str 
         dateStr = datestr(now, 'mmddyy');
-        % For a more verbose style, you could do something like:
-        % dateStr = datestr(now, 'yyyymmdd_HHMMSS');
-
-        % Make a subject-specific directory for this "section" of data
+       
         sectionDir = fullfile(rootDir, section);
         if ~exist(sectionDir, 'dir')
             mkdir(sectionDir);
         end
 
-        % Create the final .mat filename (e.g., P01_p1Dat040123.mat)
+        % Create .mat (e.g., P01_p1Dat040123.mat)
         filename = sprintf('%s_%sDat%s.mat', subjID, section, dateStr);
         savePath = fullfile(sectionDir, filename);
-
-        % Save the main data and the params
-        % -v7.3 is good for large structs/arrays
+        % save data and params 
         save(savePath, 'data', 'params', '-v7.3');
 
         % Optionally, save minimal hardware snapshot if present
@@ -64,4 +59,17 @@ function saveDat(section, subjID, data, params, demoMode)
         if ~exist(miscPath, 'dir'), mkdir(miscPath); end
         save(fullfile(miscPath, 'hardware_settings.mat'), 'hwSettings');
     end
+    % notify save 
+if isfield(params, 'currentBlock') && isfield(params, 'totalBlocks')
+    blocksRemaining = params.totalBlocks - params.currentBlock;
+    fprintf('\n==================================\n');
+    fprintf('PUPILLOMETRY DATA SAVED FOR BLOCK #%d\n', params.currentBlock);
+    fprintf('==================================\n');
+    fprintf('%d BLOCKS TO GO\n', blocksRemaining);
+    fprintf('==================================\n\n');
+else
+    fprintf('\n==================================\n');
+    fprintf('PUPILLOMETRY DATA SAVED\n');
+    fprintf('==================================\n\n');
+
 end

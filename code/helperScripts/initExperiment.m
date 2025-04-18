@@ -26,7 +26,6 @@ function [window, windowRect, expParams, ioObj, address, eyetracker] = initExper
     screens = Screen('Screens');
     screenNumber = max(screens);
     [window, windowRect] = PsychImaging('OpenWindow', screenNumber, 0.5);  % gray background
-    % not sure if i rly need this Screen('BlendFunction', window, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     [screenXpixels, screenYpixels] = Screen('WindowSize', window);
     [xCenter, yCenter] = RectCenter(windowRect);
     Screen('TextSize', window, 36);

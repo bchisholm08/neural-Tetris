@@ -1,4 +1,4 @@
-function p2()
+function p2(subjID, demoMode)
 % piece in tableau context 
 sca;
 
@@ -16,7 +16,12 @@ Trials = ;
 
 30 repetitions x 5 pieces (this is 1 block) x 5 blocks (tableaus)
 %}
-
+if nargin < 1
+subjID = input('Enter a subjID (e.g. ''P01''): ', 's');
+end
+if nargin < 2
+demoMode = 1;   % default to demo mode
+end
 
 %==================
 % TRIALS AND BLOCKS
@@ -60,8 +65,7 @@ disp(['Added to path:', eegHelperPath]);
 % get some experimenter inputs
 % decMode = input('Is Biosemi set to "DECIMAL" for data collection? (1 = yes, 0 = no): ');
 % also add in table power cable check
-subjID = input('Enter a subjID: ', 's');
-demoMode = input('Enable demo mode? (1 = yes, 0 = no): ');
+
 
 % Create directory structure
 % original path baseDataDir = 'C:\Users\chish071\Desktop\tetris\data';
@@ -178,10 +182,10 @@ Screen('DrawTexture', window, pieces(pieceID).tex, [], pieceRect);
 % If the trial is a match, draw a green square outline around it
 if strcmp(pieceName, tableauPieceName)
     highlightColor = [0 255 0];     % bright green (RGB)
-    highlightSize = 150;            % width/height of highlight box in px
-    borderThickness = 8;            % outline weight
+    highlightSize = 175;            % width/height of highlight box in px
+    borderThickness = 10;            % outline weight
 
-    % Define a centered square around the piece's draw point
+    % centered square around the piece's point
     [cx, cy] = RectCenter(windowRect);  % screen center
     highlightRect = CenterRectOnPointd([0 0 highlightSize highlightSize], cx, cy);
 
@@ -227,8 +231,13 @@ end
         WaitSecs(0.7 + rand*0.4);
     end % trial loop end 
 
-    % call Brubreck! 
-
+    % call Brubreck!
+        %% give participants a break betwixt blocks
+    if block < s2nBlocks
+        take5Brubeck(window, expParams);
+    end
+% i hope that doing break first means it moves on to saving the data...may
+% need to use parallel threads if timing becomes an issue 
     saveDat('p2', subjID, blockData, expParams, demoMode);
    end % block loop end 
 
