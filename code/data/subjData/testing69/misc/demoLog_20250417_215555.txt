@@ -1,0 +1,4 @@
+DemoMode = ON
+Subject = testing69
+Trials = 1
+Date = 2025-04-17 21:57:08

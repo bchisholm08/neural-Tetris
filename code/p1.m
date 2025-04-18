@@ -1,39 +1,22 @@
 function p1()
+% piece presentation
+sca;
+
 %{
-1) Gather subject ID and create folder / directory for them 
-
-2) Connect to, calibrate, and utilize eye tracking data 
-
-3) Connect to and trigger BioSemi EEG system
-
-4) P1() EXPERIMENT
-Display 7 tetris pieces in a block / trial loop, using a mean ITI 1sec 
-
-During experiment:
-send TDT triggers for EEG 
-record eye tracking data 
 
 Implement demoMode to lets us test the behavioral section of the
 experiment. This should bypass tobii and EEG, but display and record
 info for the behavioral part. 
+ 
+for when this is an actual function within the humanTetris wrapper, may
+want to handle subjID and demoMode input here. i.e.
 
-Take demoMode input (1/0) and deal with Tobii, TDT, and Biosemi/EEG 
-
-When demoMode = 0;
-
-
-When demoMode = 1; 
-
-%}
-
-demoMode = 1;  % Set to `true` if you want to bypass EEG and eye tracking
-
-
-clear all;
-sca;
-
-%{
+if nargin < 2 
+subjID = input('Enter subject ID (e.g., P01): ', 's');
+demoMode = input('Enable demo mode? (1 = yes, 0 = no): ');
+end 
 ===============
+
 S1 OPTIONS
 decide blocks and trials/block 
 s1-piece presentation = 40 presentations of 7 pieces = 280 total trials 
@@ -48,199 +31,220 @@ Inter-trial intervals will be random (uniform distribution), between 800ms - 120
 
 %}
 
-% For data collection: 
-% 
-%
-s1nBlocks = 2;
-s1presentationsPerBlock = 10;
-%============================================================
-
-% In CATSS, some functions that can interfere with my code 
+%==================
+% TRIALS AND BLOCKS 
+s1nBlocks = 4;
+s1presentationsPerBlock = 5;
+%==================
+% In CATSS some functions can interfere with my code 
 if isfolder('C:\CATSS_Booth2')
-    rmpath('C:\CATSS_Booth2');
+rmpath('C:\CATSS_Booth2');
 end
 
 if isfolder('R:\cla_psyc_oxenham_labscripts\scripts\')
-    rmpath('R:\cla_psyc_oxenham_labscripts\scripts\')
+rmpath('R:\cla_psyc_oxenham_labscripts\scripts\')
 end
 
 if isfolder('P:\scripts') || isfolder('P:\afc\scripts')
-    rmpath(genpath('P:\scripts'));
-    rmpath('P:\afc\scripts');
+rmpath(genpath('P:\scripts'));
+rmpath('P:\afc\scripts');
 end
 
-% Get the path of the current script
-% currentScriptPath = mfilename('fullpath');
-
+% Get the path of the current script, add scripts we need 
 currentScriptPath = matlab.desktop.editor.getActiveFilename;
-% Get the folder containing the current script
 codeFolder = fileparts(currentScriptPath);
-
-% Go up one level from /code/ to get tableaus 
 mainFolder = fileparts(codeFolder);
-
-% get tobiiSKD functions
 tobiiSDKPath = fullfile(mainFolder, 'tools', 'tobiiSDK');
-addpath(tobiiSDKPath);
-
-% Define paths to the helperScripts and dataCollection folders
 helperScriptsPath = fullfile(mainFolder, 'code', 'helperScripts');
 baseDataDir = fullfile(mainFolder, 'data');
+eegHelperPath = fullfile(mainFolder,'tools', 'matlab_port_trigger');
+tittaPath = fullfile(mainFolder, 'tools','tittaMaster');
 
-% Add both folders to the MATLAB path
-addpath(helperScriptsPath, baseDataDir);
+addpath(tobiiSDKPath, helperScriptsPath, baseDataDir, eegHelperPath, tittaPath);
 
-% confirmation
+% confirm added paths 
 disp(['Added to path: ', helperScriptsPath]);
 disp(['Added to path: ', baseDataDir]);
 disp(['Added to path: ', tobiiSDKPath]);
+disp(['Added to path:', tittaPath]);
+disp(['Added to path:', eegHelperPath]);
 
-% Check if the .mat file already exists in the current folder
-if exist('tableaus.mat', 'file') == 2
-    disp('Tableau.mat file already exists. Skipping the creation process.');
-else
-    disp('Tableau .mat file DOES NOT exist. Creating .mat file now.');
-    tableau;
+% get some experimenter inputs
+% decMode = input('Is Biosemi set to "DECIMAL" for data collection? (1 = yes, 0 = no): ');
+% also add in table power cable check 
+subjID = input('Enter a subjID: ', 's');
+demoMode = input('Enable demo mode? (1 = yes, 0 = no): ');
 
+% Create directory structure
+% original path baseDataDir = 'C:\Users\chish071\Desktop\tetris\data';
+% try to use relative not absolute paths so this program doesn't crash
+rootDir = fullfile(baseDataDir, subjID);
+
+% create subfolders for data 
+eyeDir = fullfile(rootDir, 'eyeData');
+behavDir = fullfile(rootDir, 'behavioralData');
+miscDir = fullfile(rootDir, 'misc');
+
+% create needed subject dirs 
+if ~exist(rootDir, 'dir')
+    mkdir(rootDir);
+end
+if ~exist(eyeDir, 'dir')
+    mkdir(eyeDir);
+end
+if ~exist(behavDir, 'dir')
+    mkdir(behavDir);
+end
+if ~exist(miscDir, 'dir')
+    mkdir(miscDir);
+end
+% check 
+if ~exist(rootDir, 'dir')
+    error('Failed to create root directory: %s', rootDir);
 end
 
-try % ends 144, main trial loop?
-    % Subject input
-    subjID = input('Enter subject ID (e.g., P01): ', 's');
-    demoMode = input('Enable demo mode? (1 = yes, 0 = no): ');
+%{
+calling initExperiment below does a few useful things. 
 
-    %% Set up some eyetracker stuff
-    trackingMode = 'human'; % For Tobii Pro Spectrum ['human', 'monkey', 'great_ape']; changes the illumination model of Tobii.
-    whichTracker = 'Tobii Pro Spectrum';
-    eyetrackerSamplerate = 300; 
+Firstly, it will handle sync testing and initialize PTB.
+After this, there are a handful of options for the `expParams` structure that is passed around.
+This is to not clog up main experiment scripts, but also have consistent expParams passed between sections. 
 
-    %{
-=================================
-Here I think I should do an overall calibration before 
-anything else. Establishing and setting up Tobii / Tita here 
-may be most convienent 
-=================================
-    
-    % unsure if there is any methodological reason for 300Hz sampling,except that the CATSS website says its the highest sample rate. 
-    % Would really like to know (a kinesiologist or something) the time scale that pupil dialation occurs at. Could email a UMN expert
-    %}
+Finally it will handle demo mode, and if demo mode is false, it will 
+open the parallel port for BioSemi, and complete an initial calibration of Tobii. 
 
-% Initialize experiment. This returns a lot of the 'stuff' PTB needs
-[window, windowRect, expParams] = initExperiment(subjID, demoMode);
+At the end, it returns needed info back to our experiment to get running. 
+%}
 
-% Initialize EEG and Eye Tracker inline
-if demoMode
-    ioObj = [];
-    address = [];
-    eyetracker = [];
-else
-    % EEG Trigger Setup
-    ioObj = io64;
-    status = io64(ioObj);
-    address = hex2dec('3FF8');
-    
-% Tobii Eye Tracker
-Tobii = EyeTrackingOperations();
-eyetracker_address = 'tet-tcp://169.254.6.40';
-eyetracker = Tobii.get_eyetracker(eyetracker_address);
-    
-    if isa(eyetracker, 'EyeTracker')
-        fprintf('Tobii initialized at %s\n', eyetracker.Address);
-    else
-        error('Tobii not found!');
-    end
-end % end demo mode handling 
+[window, windowRect, expParams, ioObj, address, eyetracker] = initExperiment(subjID, demoMode, baseDataDir);
 
-    % Create directory structure
-    % original path baseDataDir = 'C:\Users\chish071\Desktop\tetris\data';
-    % try to use relative not absolute paths so this program doesn't crash
-    rootDir = fullfile(baseDataDir, 'subjData', subjID);
-    if ~exist(rootDir, 'dir')
-        mkdir(rootDir);
-        arrayfun(@(x) mkdir(fullfile(rootDir, sprintf('p%d', x))), 1:4);
-        mkdir(fullfile(rootDir, 'misc'));
-    end
+try % ends 144, main experiment loop
 
-    % check for dir creation
-    if ~exist(rootDir, 'dir')
-        error('Failed to create directory: %s', rootDir);
-    end
+% unsure if there is any methodological reason for 300Hz sampling,except that the CATSS website says its the highest sample rate. 
+% Would really like to know (a kinesiologist or something) the time scale that pupil dialation occurs at. Could email UMN expert
 
-    %% Add in instruction screen(s), and practice blocks...
-    p1instruct(window, expParams);
-    %FIXME add practice blocks and practice instructions?
-
-    pieces = getTetrino(expParams);
-    nPieces = 7; % standard # of tetrino
-    
+%% Add in instruction screen (practice blocks?) 
+p1instruct(window, expParams);
+%FIXME add practice blocks and practice instructions?
+pieces = getTetrino(expParams);
+nPieces = length(pieces); 
 % preallocate data struct for subj 
-    data = struct('block', [], 'trial', [], 'piece', [], 'onset', []);
+nTrialsTotal = s1nBlocks * s1presentationsPerBlock;
+data = repmat(struct('block', [], 'trial', [], 'piece', [], ...
+                 'fixationOnset', [], 'onset', [], ...
+                 'eegTrigger', [], 'gazeData', []), ...
+                 nTrialsTotal, 1);
 
-    for block = 1:s1nBlocks
-        %% Randomize piece order within block
-        pieceOrder = repmat(1:nPieces, 1, s1presentationsPerBlock);
-         
-        pieceOrder = pieceOrder(randperm(length(pieceOrder)));
+% do randomization and determine order of presentation etc. Adding this into our data struct would allow for us
+% to perform checks throughout the experiment that values are lining up as
+% we expect, i.e. trial #10 is actually pID5 as intended
 
-        for t = 1:s1presentationsPerBlock
-            %% Fixation
-             Screen('FillRect', window, expParams.colors.background); % Clear screen to background
-            drawFixation(window, windowRect, expParams.fixation.color); % Draw cross in white
-            fixationOnset = Screen('Flip', window); % Display fixation
-            WaitSecs(0.5); % Show fixation for 500ms before stimulus
-            %% Present piece
-            pieceID = pieceOrder(t);  % Use actual piece ID
-            Screen('DrawTexture', window, pieces(pieceID).tex);
-            [~, stimOnset] = Screen('Flip', window, fixationOnset + 0.8 + rand*0.4);
+pieceOrder = randi(nPieces, 1, nTrialsTotal);
+if length(pieceOrder) ~= nTrialsTotal
+    error('Mismatch: pieceOrder (%d) DNE expected trial count (%d)', ...
+           length(pieceOrder), nTrialsTotal);
+end
 
-            %% Send EEG trigger
-            if ~demoMode && ~isempty(ioObj)
-                io64(ioObj, address, pieceID); % Trigger for pieceID
-            end
+for block = 1:s1nBlocks
+    for t = 1:s1presentationsPerBlock
+% clear gaze buffer before collecting data 
+if ~demoMode 
+eyetracker.get_gaze_data(); % flush buffer 
+end 
+    % Fixation
+    Screen('FillRect', window, expParams.colors.background); % Clear screen to background
+    drawFixation(window, windowRect, expParams.fixation.color); % Draw cross in white
+    fixationOnset = Screen('Flip', window); % Display fixation
+    WaitSecs(0.5); % Show fixation for 500ms before stimulus
 
-            %% Collect Tobii data
-            gazeData = []; % Initialize to empty
-            if ~demoMode
-                gazeData = eyetracker.get_gaze_data(); % Get data since last call
-            end
+    %% Present piece
+    pieceID = pieceOrder((block - 1) * s1presentationsPerBlock + t);
+    Screen('DrawTexture', window, pieces(pieceID).tex);
+    [~, stimOnset] = Screen('Flip', window, fixationOnset + 0.8 + rand*0.4);
 
-            %% Log data
-            data(end).block = block;
-            data(end).trial = t;
-            data(end).piece = pieceID;
-            data(end).onset = stimOnset;
-            data(end).eegTrigger = pieceID;
-            data(end).gazeData = gazeData; % Handles demoMode gracefully
+    %% Send EEG trigger 
+    % since we have info from initExp, shouldn't have to do ~demo
+    % etc. 
+    eegTrigger = pieceID * 10;  % 'Piece Alone' triggers: I=10, Z=20, ..., T=70
+    if ~demoMode && ~isempty(ioObj)
+        io64(ioObj, address, eegTrigger);
+    end
+    %FIXME EEG TRIGGER FUNCTION 
+    % trigger sanity check 
+    fprintf('B#/T# = %d/%d | pID = %d | trigger = %d\n', block, t, pieceID, eegTrigger);
+    % Collect Tobii data
+    gazeData = []; % Initialize to empty
+    if ~demoMode
+        gazeData = eyetracker.get_gaze_data(); % Get data since last call
+    end
 
-            %% handle ITI
-            WaitSecs(0.1);  % 100ms presentation
-            Screen('Flip', window);
-            WaitSecs(0.7 + rand*0.4);  % 800-1200ms ITI
-        end
-        %% Break betwixt blocks
-        if block < s1nBlocks
-            take5Brubeck(window, expParams);
-        end
-    end % S1 block end
-    %% Save Section 1 data
-    saveDat('p1', subjID, data, expParams, demoMode);
-    sca;          % Close PTB, screan clear
-    Priority(0);  % Reset priority of matlab
-    ShowCursor;   % Restore cursor
-    rethrow(ME);  % Show error details
+    %% Log data
+    trialIndex = (block - 1) * s1presentationsPerBlock + t;
+    data(trialIndex).block = block;
+    data(trialIndex).trial = t;
+    data(trialIndex).piece = pieceID;
+    data(trialIndex).onset = stimOnset;
+    data(trialIndex).eegTrigger = eegTrigger;
+    data(trialIndex).fixationOnset = fixationOnset;
+    data(trialIndex).trialDuration = stimOnset - fixationOnset;
+    data(trialIndex).gazeData = gazeData;
+
+    %% handle ITI
+    WaitSecs(0.1); % piece display for 100ms  
+    Screen('Flip', window); % offset piece 
+
+    %FIXME the ITI is a crucial time where we need to name and save the
+    %pupil data. Important! Make effecient as well...
+trialData = struct();
+trialData.block          = block;
+trialData.trial          = t;
+trialData.pieceID        = pieceID;
+trialData.gazeData       = gazeData;
+trialData.onset          = stimOnset; 
+trialData.nSamples       = length(gazeData);
+trialData.eegTrigger = eegTrigger;  % same as data(trialIndex)
+trialData.fixationOnset  = fixationOnset;
+trialData.saveTimestamp  = datestr(now);  % or datestr(now)
+% call preprocessing function 
+trialData = preprocessGazeData(trialData);
+
+pupilFileName = fullfile(eyeDir, sprintf('%s_trial%03d_block%02d.mat', subjID, t, block));
+save(pupilFileName, 'trialData', '-v7');
+fprintf('Trial %d: gaze samples = %d\n\n', t, length(gazeData));
+
+WaitSecs(0.7 + rand*0.4);  % 800-1200ms ITI
+
+    end
+    %% give participants a break betwixt blocks
+    if block < s1nBlocks
+        take5Brubeck(window, expParams);
+    end
+end % S1 block end
+%% Save data
+ %% Save behavioral data @ end
+expParams.pieceOrder = pieceOrder;
+expParams.timestamp = datestr(now, 'yyyymmdd_HHMMSS');
+saveDat('p1', subjID, data, expParams, demoMode);
+
+sca;          
+Priority(0); 
+ShowCursor;
+Screen('CloseAll') % clean up
 %====================================================================
-    catch ME
-    sca;          % Close PTB, screan clear
-    Priority(0);  % Reset priority of matlab
-    ShowCursor;   % Restore cursor
+catch ME
+sca;          % Close PTB, screan clear
+Priority(0);  % Reset priority of matlab
+ShowCursor;   % Restore cursor
+rethrow(ME);  % Show error details
+Screen('CloseAll')
+%% call expBreakscreen() to save data and help transition to next section
 
+% neat trick that can make matlab jump to a the line where the
+% crash occurred:
 
-    % neat trick that can make matlab jump to a the line where the
-    % crash occurred:
-    
-    % hEditor = matlab.desktop.editor.getActive;
-    % hEditor.goToLine(whathappened.stack(end).line)
-    % commandwindow;  % Courtesy of JM :)
+% hEditor = matlab.desktop.editor.getActive;
+% hEditor.goToLine(whathappened.stack(end).line)
+% commandwindow;  % Courtesy JM :)
 % =======================================================================
 end % try [i.e. experiment] end
 end % p1() end

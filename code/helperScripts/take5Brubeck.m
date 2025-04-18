@@ -3,12 +3,12 @@ function take5Brubeck(window, params)
     % adjust these for real experiment, take note of changes in break time for MANUSCRIPT
 
     % Break parameters (sec)
-    minBreakTime = 5;  
-    maxBreakTime = 300; 
+    minBreakTime = params.rule.minBreakTime;  
+    maxBreakTime = params.rule.maxBreakTime; 
     startTime = GetSecs;
     
     while GetSecs - startTime < maxBreakTime
-        % calculate some useful #'s 
+        % calculate useful #'s 
         elapsed = GetSecs - startTime;
         remaining = max(minBreakTime - elapsed, 0);
         

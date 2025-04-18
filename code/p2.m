@@ -1,37 +1,30 @@
 function p2()
-clear all;
+% piece in tableau context 
 sca;
 
 %{
 ===============
-S1 & S2 OPTIONS
-
-decide blocks and trials/block 
-
+S2 OPTIONS
 s1-piece presentation = 60 presentations of 7 pieces = 420 total trials 
 420 = 
 exp: Blocks = 3; 
 Trials = 20;
-
-
-Present the 5 original tetris pieces, each ~60 times with EEG recording, focused on capturing the moment of piece presentation. Presentation of the stimuli will be brief (~100ms, or 5-6 frames at 60Hz). Inter-trial intervals will be random (uniform distribution), between 800ms - 1200ms (mean of 1 second). 60 repetitions of each piece x 5 pieces x 1100 ms (presentation + ITI) = ~5.5 minutes. 
-
-
-
+each ~60 times with EEG recording, focused on capturing the moment of piece presentation. Presentation of the stimuli will be brief (~100ms, or 5-6 frames at 60Hz). Inter-trial intervals will be random (uniform distribution), between 800ms - 1200ms (mean of 1 second). 60 repetitions of each piece x 5 pieces x 1100 ms (presentation + ITI) = ~5.5 minutes. 
 s2-piece presentation with tableau = 30 repetitions 
 exp: Blocks = 5; 
 Trials = ;
 
-
 30 repetitions x 5 pieces (this is 1 block) x 5 blocks (tableaus)
-
-===============
 %}
-s2nBlocks = 4;
-s2PresentationsPerBlock = 3;
-%============================================================
 
-% In CATSS, some functions that can interfere
+
+%==================
+% TRIALS AND BLOCKS
+s2nBlocks = 7;
+s2presentationsPerBlock = 30;
+%==================
+
+% In CATSS some functions can interfere with my code
 if isfolder('C:\CATSS_Booth2')
     rmpath('C:\CATSS_Booth2');
 end
@@ -45,167 +38,217 @@ if isfolder('P:\scripts') || isfolder('P:\afc\scripts')
     rmpath('P:\afc\scripts');
 end
 
-%{
-=================================
-%% S1 %%
-=================================
-%}
-
-% Get the path of the current script
-currentScriptPath = mfilename('fullpath');
-
-% Get the folder containing the current script
+% Get the path of the current script, add scripts we need
+currentScriptPath = matlab.desktop.editor.getActiveFilename;
 codeFolder = fileparts(currentScriptPath);
-
-% Go up one level from /code/
 mainFolder = fileparts(codeFolder);
-
-% Define paths to the helperScripts and dataCollection folders
+tobiiSDKPath = fullfile(mainFolder, 'tools', 'tobiiSDK');
 helperScriptsPath = fullfile(mainFolder, 'code', 'helperScripts');
 baseDataDir = fullfile(mainFolder, 'data');
+eegHelperPath = fullfile(mainFolder,'tools', 'matlab_port_trigger');
+tittaPath = fullfile(mainFolder, 'tools','tittaMaster');
 
-% Add both folders to the MATLAB path
-addpath(helperScriptsPath, baseDataDir);
+addpath(tobiiSDKPath, helperScriptsPath, baseDataDir, eegHelperPath, tittaPath);
 
-% Display confirmation
+% confirm added paths
 disp(['Added to path: ', helperScriptsPath]);
-disp(['Added to path: ', baseDataDir]); 
+disp(['Added to path: ', baseDataDir]);
+disp(['Added to path: ', tobiiSDKPath]);
+disp(['Added to path:', tittaPath]);
+disp(['Added to path:', eegHelperPath]);
+
+% get some experimenter inputs
+% decMode = input('Is Biosemi set to "DECIMAL" for data collection? (1 = yes, 0 = no): ');
+% also add in table power cable check
+subjID = input('Enter a subjID: ', 's');
+demoMode = input('Enable demo mode? (1 = yes, 0 = no): ');
+
+% Create directory structure
+% original path baseDataDir = 'C:\Users\chish071\Desktop\tetris\data';
+% try to use relative not absolute paths so this program doesn't crash
+rootDir = fullfile(baseDataDir, subjID);
+
+% create subfolders for data
+eyeDir = fullfile(rootDir, 'eyeData');
+behavDir = fullfile(rootDir, 'behavioralData');
+miscDir = fullfile(rootDir, 'misc');
+
+% create needed subject dirs
+if ~exist(rootDir, 'dir')
+    mkdir(rootDir);
+end
+if ~exist(eyeDir, 'dir')
+    mkdir(eyeDir);
+end
+if ~exist(behavDir, 'dir')
+    mkdir(behavDir);
+end
+if ~exist(miscDir, 'dir')
+    mkdir(miscDir);
+end
+% check
+if ~exist(rootDir, 'dir')
+    error('Failed to create root directory: %s', rootDir);
+end
+
 %{
-==========================
-%% S2  %%
-==========================
-    %}
-%% Section 2: Tableaus and contexts
-fprintf('\n=== Running Section 2 ===\n');
-tableaus = getTableaus(); % Load all tableaus
-bHeight = 15; % Visible rows
-bWidth = 10;
+calling initExperiment below does a few useful things. 
 
-% Convert all tableaus to textures
-for t = 1:length(tableaus)
-    % Convert the board matrix to a texture
-    boardMatrix = tableaus(t).board(1:bHeight,:); % Use only visible rows
-  texMat = ones(size(boardMatrix,1), size(boardMatrix,2), 3); % White background
-blockMask = repmat(boardMatrix, [1 1 3]); % Create RGB mask
-texMat(blockMask == 1) = 0; % Set blocks to black
-tableaus(t).tex = Screen('MakeTexture', window, texMat*255, [], [], 2); % High quality texture
-end
+Firstly, it will handle sync testing and initialize PTB.
+After this, there are a handful of options for the `expParams` structure that is passed around.
+This is to not clog up main experiment scripts, but also have consistent expParams passed between sections. 
 
-% Define piece names in order (1-7)
-pieceNames = {'I','Z','O','S','J','L','T'};
+Finally it will handle demo mode, and if demo mode is false, it will 
+open the parallel port for BioSemi, and complete an initial calibration of Tobii. 
 
-for block = 1:s2nBlocks
-    % initialize struct for block data 
-blockData = struct('block', block, 'trials', repmat(struct(...
-    'piece', [],...
-    'pieceOnset', [],...
-    'showTableau', [],...
-    'condition', [],...
-    'tableauType', [],...
-    'delayDuration', [],...
-    'gazeData', [],...
-    'eegTrigger', []), 1, s2PresentationsPerBlock)); 
+At the end, it returns needed info back to our experiment to get running. 
+%}
 
-for t = 1:s2PresentationsPerBlock
-    %% Fixation Cross (500ms)
-    Screen('FillRect', window, params.colors.background);
-    drawFixation(window, windowRect, params.fixation.color);
-    fixationOnset = Screen('Flip', window);
-    WaitSecs(0.5);
+[window, windowRect, expParams, ioObj, address, eyetracker] = initExperiment(subjID, demoMode, baseDataDir);
 
-    %% Randomly select piece and condition
-    pieceID = randi(nPieces);
-    currentPiece = pieceNames{pieceID};
+try % begin try for experiment after init exp
+    %% Section 2: Tableaus and contexts
+    p2instruct(window, expParams)
+    tableaus = getTableaus(window, expParams); % 
 
-    % Get all tableaus for this piece
-    pieceTableaus = tableaus(strcmp({tableaus.piece}, currentPiece));
-    defaultTableau = struct('condition', 'none', 'piece', 'none', 'tex', [], 'board', zeros(bHeight,bWidth));
-    %% Determine if we show tableau (50% chance)
-    showTableau = rand < 0.5;
-    delayDuration = 0.8 + rand*0.4; % Random delay: 0.8-1.2s
-        
-%% Present Tableau or Blank Screen
-% Initialize default tableau structure BEFORE the conditional
-currentTableau = struct('condition', 'none', 'piece', 'none', 'tex', []);
-
-if showTableau
-    % Randomly select one condition for this piece
-    condIdx = randi(length(pieceTableaus));
-    currentTableau = pieceTableaus(condIdx); % Override default if showing tableau
+    pieces = getTetrino(expParams);
+    nPieces = length(pieces);
+    % preallocate data struct for subj
+    nTrialsTotal = s2nBlocks * s2presentationsPerBlock;
     
-    % Draw tableau
-    Screen('DrawTexture', window, currentTableau.tex);
-    tabOnset = Screen('Flip', window, fixationOnset + 0.5);
-    pieceTime = tabOnset + delayDuration;
-else
-    % Show blank screen for the same duration
-    Screen('FillRect', window, params.colors.background);
-    blankOnset = Screen('Flip', window, fixationOnset + 0.5);
-    pieceTime = blankOnset + delayDuration;
-end
-        
-%% Present Piece (centered over tableau/blank)
-pieceRect = CenterRectOnPointd(pieces(pieceID).rect,...
-windowRect(3)/2, windowRect(4)/2);
+    % Convert all tableaus to textures
+
+blockSize = 50;
+border = 2;
+
+[screenX, screenY] = Screen('WindowSize', window);
+
+
+    % Define piece names in order (1-7)
+    pieceNames = {'I','Z','O','S','J','L','T'};
+
+    % Set up block-wise condition structure
+    targetPieceIDs = randperm(nPieces);  % Randomize block-wise tableau pieces
+    blockData = struct();
+    blockData.trials = struct();  % leave empty and grow it safely
+
+
+   for block = 1:s2nBlocks
+    tableauPieceID = targetPieceIDs(block);       % which piece's tableau to show this block
+    tableauPieceName = pieceNames{tableauPieceID};  % e.g., 'I'
+
+    % Always use this tableau (e.g., I-fit_reward)
+    matchingTableaus = tableaus(strcmp({tableaus.piece}, tableauPieceName) & ...
+                                strcmp({tableaus.condition}, 'fit_reward'));
+    if isempty(matchingTableaus)
+        error('No tableau found for piece %s under fit_reward', tableauPieceName);
+    end
+    currentTableau = matchingTableaus(1);  % only need one, fixed for block
+
+    for t = 1:s2presentationsPerBlock
+        pieceID = randi(nPieces);  % vary the stimulus piece each trial
+        pieceName = pieceNames{pieceID};
+
+        % Gaze buffer flush
+        if ~demoMode
+            eyetracker.get_gaze_data();
+        end
+
+        % Fixation
+        Screen('FillRect', window, expParams.colors.background);
+        drawFixation(window, windowRect, expParams.fixation.color);
+        fixationOnset = Screen('Flip', window);
+        WaitSecs(0.5);
+
+        % Draw tableau and piece
+        Screen('DrawTexture', window, currentTableau.tex, [], currentTableau.rect);
+        pieceRect = CenterRectOnPointd(pieces(pieceID).rect, ...
+                                       windowRect(3)/2, windowRect(4)/2);
+
+        % EEG trigger
+        currentCond = 'contextual';  % or 'context_block'
+        eegTrigger = getTrig(pieceName, 'fit_reward');  % mapping remains clear
+        if ~demoMode && ~isempty(ioObj)
+            io64(ioObj, address, eegTrigger);
+        end
+
+% Draw piece
 Screen('DrawTexture', window, pieces(pieceID).tex, [], pieceRect);
 
-%% Send EEG trigger (add 10 to pieceID when tableau is shown)
-triggerValue = []; % Default empty value
+% If the trial is a match, draw a green square outline around it
+if strcmp(pieceName, tableauPieceName)
+    highlightColor = [0 255 0];     % bright green (RGB)
+    highlightSize = 150;            % width/height of highlight box in px
+    borderThickness = 8;            % outline weight
 
-%% Send EEG trigger (only if not in demo mode)
-if ~demoMode && ~isempty(ioObj)
-    triggerValue = pieceID + showTableau*10;
-    io64(ioObj, address, triggerValue);
-end
+    % Define a centered square around the piece's draw point
+    [cx, cy] = RectCenter(windowRect);  % screen center
+    highlightRect = CenterRectOnPointd([0 0 highlightSize highlightSize], cx, cy);
 
-%% Flip screen and record timing
-[~, pieceOnset] = Screen('Flip', window, pieceTime);
-        
-%% Collect eye tracking data
-gazeData = [];
-if ~demoMode
-    gazeData = eyetracker.get_gaze_data('from', pieceOnset);
+    Screen('FrameRect', window, highlightColor, highlightRect, borderThickness);
 end
 
-%% Log Data
-if ~exist('currentTableau', 'var') || isempty(currentTableau)
-    error('p1:missingTableau', 'currentTableau not initialized');
-end
-    
-    blockData.trials(t).piece = pieceID;
-    blockData.trials(t).pieceOnset = pieceOnset;
-    blockData.trials(t).showTableau = showTableau;
-    blockData.trials(t).condition = currentTableau.condition;
-    blockData.trials(t).tableauType = currentTableau.piece;
-    blockData.trials(t).delayDuration = delayDuration;
-    blockData.trials(t).gazeData = gazeData;
-    blockData.trials(t).eegTrigger = triggerValue;
-                
-    %% ITI (800-1200ms)
-    Screen('FillRect', window, params.colors.background);
-    % itiOnset = Screen('Flip', window);
-    WaitSecs(0.7 + rand*0.4);
-end
-    
-    %% Save Block Data
-    saveDat('p2', subjID, blockData, params, demoMode);
-end % block end 
+      
+        [~, stimOnset] = Screen('Flip', window);
+
+        fprintf('B#/T# = %d/%d | Tableau: %s | Stim: %s | EEG = %d\n', ...
+            block, t, tableauPieceName, pieceName, eegTrigger);
+
+        % Eye tracking
+        gazeData = [];
+        if ~demoMode
+            gazeData = eyetracker.get_gaze_data('from', stimOnset);
+        end
+
+        % Log trial
+        trial.block = block;
+        trial.trial = t;
+        trial.piece = pieceName;
+        trial.contextPiece = tableauPieceName;
+        trial.condition = currentCond;
+        trial.fixationOnset = fixationOnset;
+        trial.stimOnset = stimOnset;
+        trial.eegTrigger = eegTrigger;
+        trial.gazeData = gazeData;
+        trial.isMatch = strcmp(pieceName, tableauPieceName);  % useful in later analysis
+        trial.nSamples = length(gazeData);
+
+        if t == 1 && block == 1
+            blockData.trials = trial;
+        else
+            blockData.trials(end+1) = trial;
+        end
+
+        pupilFileName = fullfile(eyeDir, sprintf('%s_p2_trial%03d_block%02d.mat', subjID, t, block));
+        save(pupilFileName, 'trial', '-v7');
+
+        % ITI
+        Screen('FillRect', window, expParams.colors.background);
+        WaitSecs(0.7 + rand*0.4);
+    end % trial loop end 
+
+    % call Brubreck! 
+
+    saveDat('p2', subjID, blockData, expParams, demoMode);
+   end % block loop end 
 
     % Cleanup
     if ~demoMode
         tetio_disconnectTracker();
     end
+    Priority(0);
+    ShowCursor;
     sca;
-
+    Screen('CloseAll')
 catch ME
     sca;          % Close PTB, screan clear
     Priority(0);  % Reset priority of matlab
     ShowCursor;   % Restore cursor
     rethrow(ME);  % Show error details
-
+    Screen('CloseAll')
     % neat trick that can make matlab jump to a the line where the
     % crash occurred:
     hEditor = matlab.desktop.editor.getActive;
     hEditor.goToLine(whathappened.stack(end).line)
     commandwindow;  % Courtesy of JM :)
-end % function end 
+end % function end

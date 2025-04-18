@@ -1,4 +1,5 @@
 function p4()
+% 4-AFC 
     % Load subject data
     subjID = input('Enter subject ID: ', 's');
     [window, ~, params] = experiment_init(subjID);

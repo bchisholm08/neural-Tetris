@@ -1,589 +1,156 @@
-function tableaus = getTableaus()
-    % Initialize structure
-    tableaus = struct('piece', {}, 'board', {}, 'condition', {});
+function tableaus = getTableaus(window,expParams)
+    % Returns tableaus for each piece under 3 conditions:
+    % 1. fit_reward: fits and completes line
+    % 2. fit_no_reward: fits but does not complete
+    % 3. no_fit: does not fit at all
 
-    % ================== I-PIECE ==================
-    % 1. FIT + REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0; % Row 1
-        0 0 0 0 0 0 0 0 0 0; % Row 2
-        0 0 0 0 0 0 0 0 0 0; % Row 3
-        0 0 0 0 0 0 0 0 0 0; % Row 4
-        0 0 0 0 0 0 0 0 0 0; % Row 5
-        0 0 0 0 0 0 0 0 0 0; % Row 6
-        0 0 0 0 0 0 0 0 0 0; % Row 7
-        0 0 0 0 0 0 0 0 0 0; % Row 8
-        0 0 0 0 0 0 0 0 0 0; % Row 9
-        0 0 0 0 0 0 0 0 0 0; % Row 10
-        0 0 0 0 0 0 0 0 0 0; % Row 11
-        0 0 0 0 0 0 0 0 0 0; % Row 12
-        0 0 0 0 0 0 0 0 0 0; % Row 13
-        1 1 1 1 1 1 1 1 1 1; % Floor
-        1 1 1 1 1 1 1 1 1 1];% Floor
-    board(10:13, 4) = 0; % Vertical I-piece slot
-    tableaus(end+1) = struct('piece', 'I', 'board', board, 'condition', 'fit_reward');
+    %{
+can use this code chunk to delete tableaus from the environment if they already
+exist. 
+    tableauPath = fullfile(pwd, 'tableaus.mat');
+    if exist(tableauPath, 'file')
+        delete(tableauPath);
+        fprintf('Deleted existing tableau file: %s\n', tableauPath);
+    end
+    %} 
+    screenX = expParams.screen.width;
+    screenY = expParams.screen.height;
+    % for building tableaus     
+    blockSize = 50; % single piece-section (px) 
+    border = 2;     % border width (px)
 
-    % 2. FIT NO REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(5:8, 4) = 0; % Higher vertical slot
-    tableaus(end+1) = struct('piece', 'I', 'board', board, 'condition', 'fit_no_reward');
+    tableaus = struct('piece', {}, 'condition', {}, 'board', {});
 
-    % 3. NO FIT
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(10:13, 4) = 0;
-    board(12, 4) = 1; % Block in middle
-    tableaus(end+1) = struct('piece', 'I', 'board', board, 'condition', 'no_fit');
+    %% ==== I PIECE ==== 1 1 1 1 1 1 1 1 1 1 
+    tableaus(end+1) = struct('piece', 'I', 'condition', 'fit_reward', ...
+        'board', [0 0 0 0 1 1 1 1 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'I', 'condition', 'fit_no_reward', ...
+        'board', [0 1 0 0 0 1 0 0 0 0; 0 1 0 0 0 1 0 0 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'I', 'condition', 'no_fit', ...
+        'board', [1 0 1 0 0 0 1 0 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
 
-    % 4. GARBAGE
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    % Manual garbage pattern
-    board(5,1) = 0;  % Single holes in each column
-    board(7,2) = 0;
-    board(9,3) = 0;
-    board(6,4) = 0;
-    board(8,5) = 0;
-    board(10,6) = 0;
-    board(12,7) = 0;
-    board(11,8) = 0;
-    board(7,9) = 0;
-    board(9,10) = 0;
-    tableaus(end+1) = struct('piece', 'I', 'board', board, 'condition', 'garbage');
+    %% ==== Z PIECE ====
+    tableaus(end+1) = struct('piece', 'Z', 'condition', 'fit_reward', ...
+        'board', [0 1 1 0 1 1 0 0 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'Z', 'condition', 'fit_no_reward', ...
+        'board', [0 0 1 1 0 1 1 0 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'Z', 'condition', 'no_fit', ...
+        'board', [0 1 0 0 1 0 0 0 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
 
-    % ================== Z-PIECE ==================
-    % 1. FIT + REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 1 1 0 0 0 0; % Z-shape
-        0 0 0 1 1 0 0 0 0 0; % Z-shape
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    tableaus(end+1) = struct('piece', 'Z', 'board', board, 'condition', 'fit_reward');
+    %% ==== O PIECE ====
+    tableaus(end+1) = struct('piece', 'O', 'condition', 'fit_reward', ...
+        'board', [0 0 0 1 1 1 1 0 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'O', 'condition', 'fit_no_reward', ...
+        'board', [0 0 1 1 1 1 0 0 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'O', 'condition', 'no_fit', ...
+        'board', [1 0 1 0 1 0 1 0 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
 
-    % 2. FIT NO REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 1 1 0 0 0 0; % Higher Z-shape
-        0 0 0 1 1 0 0 0 0 0; % Higher Z-shape
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    tableaus(end+1) = struct('piece', 'Z', 'board', board, 'condition', 'fit_no_reward');
+    %% ==== S PIECE ====
+    tableaus(end+1) = struct('piece', 'S', 'condition', 'fit_reward', ...
+        'board', [1 1 0 0 0 1 1 0 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'S', 'condition', 'fit_no_reward', ...
+        'board', [1 0 0 1 1 0 0 1 1 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'S', 'condition', 'no_fit', ...
+        'board', [0 0 1 0 0 1 0 0 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
 
-    % 3. NO FIT
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 1 1 0 0 0 0;
-        0 0 0 1 1 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(12,5) = 1; % Block critical spot
-    tableaus(end+1) = struct('piece', 'Z', 'board', board, 'condition', 'no_fit');
+    %% ==== J PIECE ====
+    tableaus(end+1) = struct('piece', 'J', 'condition', 'fit_reward', ...
+        'board', [0 0 1 0 0 0 1 1 1 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'J', 'condition', 'fit_no_reward', ...
+        'board', [1 1 1 0 0 1 0 0 1 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'J', 'condition', 'no_fit', ...
+        'board', [0 0 0 1 0 0 0 1 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
 
-    % 4. GARBAGE
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    % Manual garbage pattern
-    board(5,2) = 0;
-    board(7,4) = 0;
-    board(9,6) = 0;
-    board(11,8) = 0;
-    board(13,10) = 0;
-    board(6,1) = 0;
-    board(8,3) = 0;
-    board(10,5) = 0;
-    board(12,7) = 0;
-    board(14,9) = 0;
-    tableaus(end+1) = struct('piece', 'Z', 'board', board, 'condition', 'garbage');
+    %% ==== L PIECE ====
+    tableaus(end+1) = struct('piece', 'L', 'condition', 'fit_reward', ...
+        'board', [0 0 1 1 1 0 0 0 1 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'L', 'condition', 'fit_no_reward', ...
+        'board', [0 0 1 1 0 0 1 1 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'L', 'condition', 'no_fit', ...
+        'board', [1 0 0 0 1 0 0 0 1 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
 
-    % ================== O-PIECE ==================
-    % 1. FIT + REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(11:12, 4:5) = 0; % 2x2 square
-    tableaus(end+1) = struct('piece', 'O', 'board', board, 'condition', 'fit_reward');
+    %% ==== T PIECE ====
+    tableaus(end+1) = struct('piece', 'T', 'condition', 'fit_reward', ...
+        'board', [0 1 1 1 0 1 0 0 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'T', 'condition', 'fit_no_reward', ...
+        'board', [1 1 1 0 1 1 1 0 0 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
+    tableaus(end+1) = struct('piece', 'T', 'condition', 'no_fit', ...
+        'board', [0 0 1 0 0 1 0 0 1 0; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1; 1 1 1 1 1 1 1 1 1 1]);
 
-    % Continue this exact pattern for remaining pieces/conditions...
-    % [S, J, L, T pieces would follow same structure]
-    % ================== S-PIECE ==================
-    % 1. FIT + REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(12,5:6) = 0;  % S-shape
-    board(13,4:5) = 0;  % S-shape
-    tableaus(end+1) = struct('piece', 'S', 'board', board, 'condition', 'fit_reward');
+for t = 1:length(tableaus)
+        board = tableaus(t).board;
+        [rows, cols] = size(board);
 
-    % 2. FIT NO REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(6,5:6) = 0;  % Higher S-shape
-    board(7,4:5) = 0;  % Higher S-shape
-    tableaus(end+1) = struct('piece', 'S', 'board', board, 'condition', 'fit_no_reward');
+        img = zeros(rows * blockSize, cols * blockSize, 3);
 
-    % 3. NO FIT
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(12,5:6) = 0;
-    board(13,4:5) = 0;
-    board(13,5) = 1;  % Block critical spot
-    tableaus(end+1) = struct('piece', 'S', 'board', board, 'condition', 'no_fit');
+        for r = 1:rows
+            for c = 1:cols
+                if board(r, c) == 1
+                    rowStart = (r - 1) * blockSize + 1;
+                    colStart = (c - 1) * blockSize + 1;
 
-    % 4. GARBAGE
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    % Manual garbage pattern
-    board(5,3) = 0;
-    board(7,5) = 0;
-    board(9,7) = 0;
-    board(11,9) = 0;
-    board(6,2) = 0;
-    board(8,4) = 0;
-    board(10,6) = 0;
-    board(12,8) = 0;
-    board(7,1) = 0;
-    board(9,10) = 0;
-    tableaus(end+1) = struct('piece', 'S', 'board', board, 'condition', 'garbage');
+                    rowPixels = rowStart + border : rowStart + blockSize - border;
+                    colPixels = colStart + border : colStart + blockSize - border;
 
-    % ================== J-PIECE ==================
-    % 1. FIT + REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(11:13,5) = 0; % Vertical
-    board(13,6) = 0;    % Right hook
-    tableaus(end+1) = struct('piece', 'J', 'board', board, 'condition', 'fit_reward');
+                    color = reshape(expParams.colors.piece, 1, 1, 3);
+                    img(rowPixels, colPixels, :) = repmat(color, length(rowPixels), length(colPixels), 1);
+                end
+            end
+        end
 
-    % 2. FIT NO REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(5:7,5) = 0;   % Higher vertical
-    board(7,6) = 0;     % Higher hook
-    tableaus(end+1) = struct('piece', 'J', 'board', board, 'condition', 'fit_no_reward');
+        tex = Screen('MakeTexture', window, img * 255);
+        texRect = [0 0 size(img, 2) size(img, 1)];
+        tableauRect = CenterRectOnPointd(texRect, screenX/2, screenY - size(img,1)/2 - 40);
 
-    % 3. NO FIT
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(11:13,5) = 0;
-    board(13,6) = 0;
-    board(12,5) = 1;  % Block vertical
-    tableaus(end+1) = struct('piece', 'J', 'board', board, 'condition', 'no_fit');
+        tableaus(t).tex = tex;
+        tableaus(t).rect = tableauRect;
+    end
 
-    % 4. GARBAGE
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    % Manual garbage pattern
-    board(5,1) = 0;
-    board(7,3) = 0;
-    board(9,5) = 0;
-    board(11,7) = 0;
-    board(13,9) = 0;
-    board(6,2) = 0;
-    board(8,4) = 0;
-    board(10,6) = 0;
-    board(12,8) = 0;
-    board(14,10) = 0;
-    tableaus(end+1) = struct('piece', 'J', 'board', board, 'condition', 'garbage');
+    %% ==== Add garbage tableau for each piece ====
+    pieceNames = {'I', 'Z', 'O', 'S', 'J', 'L', 'T'};
+    garbageBoard = ones(4, 10);  % fully filled board
 
-    % ================== L-PIECE ==================
-    % 1. FIT + REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(11:13,5) = 0; % Vertical
-    board(13,4) = 0;    % Left hook
-    tableaus(end+1) = struct('piece', 'L', 'board', board, 'condition', 'fit_reward');
+    for i = 1:length(pieceNames)
+        tableaus(end+1) = struct( ...
+            'piece', pieceNames{i}, ...
+            'condition', 'garbage', ...
+            'board', garbageBoard, ...
+            'tex', [], ...
+            'rect', [] ...
+        );
+    end
 
-    % 2. FIT NO REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(5:7,5) = 0;   % Higher vertical
-    board(7,4) = 0;     % Higher hook
-    tableaus(end+1) = struct('piece', 'L', 'board', board, 'condition', 'fit_no_reward');
+    %% ==== Render PTB textures for garbage tableaus ====
+    newStartIdx = length(tableaus) - length(pieceNames) + 1;
+    for t = newStartIdx:length(tableaus)
+        board = tableaus(t).board;
+        [rows, cols] = size(board);
 
-    % 3. NO FIT
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(11:13,5) = 0;
-    board(13,4) = 0;
-    board(12,5) = 1;  % Block vertical
-    tableaus(end+1) = struct('piece', 'L', 'board', board, 'condition', 'no_fit');
+        img = zeros(rows * blockSize, cols * blockSize, 3);
 
-    % 4. GARBAGE
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    % Manual garbage pattern
-    board(5,9) = 0;
-    board(7,7) = 0;
-    board(9,5) = 0;
-    board(11,3) = 0;
-    board(13,1) = 0;
-    board(6,8) = 0;
-    board(8,6) = 0;
-    board(10,4) = 0;
-    board(12,2) = 0;
-    board(14,10) = 0;
-    tableaus(end+1) = struct('piece', 'L', 'board', board, 'condition', 'garbage');
+        for r = 1:rows
+            for c = 1:cols
+                if board(r, c) == 1
+                    rowStart = (r - 1) * blockSize + 1;
+                    colStart = (c - 1) * blockSize + 1;
 
-    % ================== T-PIECE ==================
-    % 1. FIT + REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(12,4:6) = 0; % Horizontal
-    board(13,5) = 0;   % Center
-    tableaus(end+1) = struct('piece', 'T', 'board', board, 'condition', 'fit_reward');
+                    rowPixels = rowStart + border : rowStart + blockSize - border;
+                    colPixels = colStart + border : colStart + blockSize - border;
 
-    % 2. FIT NO REWARD
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(6,4:6) = 0;  % Higher horizontal
-    board(7,5) = 0;    % Higher center
-    tableaus(end+1) = struct('piece', 'T', 'board', board, 'condition', 'fit_no_reward');
+                    color = reshape(expParams.colors.piece, 1, 1, 3);
+                    img(rowPixels, colPixels, :) = repmat(color, length(rowPixels), length(colPixels), 1);
+                end
+            end
+        end
 
-    % 3. NO FIT
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    board(12,4:6) = 0;
-    board(13,5) = 0;
-    board(12,5) = 1;  % Block center
-    tableaus(end+1) = struct('piece', 'T', 'board', board, 'condition', 'no_fit');
+        tex = Screen('MakeTexture', window, img * 255);
+        texRect = [0 0 size(img, 2) size(img, 1)];
+        tableauRect = CenterRectOnPointd(texRect, screenX/2, screenY - size(img,1)/2 - 40);
 
-    % 4. GARBAGE
-    board = [...
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        0 0 0 0 0 0 0 0 0 0;
-        1 1 1 1 1 1 1 1 1 1;
-        1 1 1 1 1 1 1 1 1 1];
-    % Manual garbage pattern
-    board(5,2) = 0;
-    board(7,4) = 0;
-    board(9,6) = 0;
-    board(11,8) = 0;
-    board(13,10) = 0;
-    board(6,1) = 0;
-    board(8,3) = 0;
-    board(10,5) = 0;
-    board(12,7) = 0;
-    board(14,9) = 0;
-    tableaus(end+1) = struct('piece', 'T', 'board', board, 'condition', 'garbage');
+        tableaus(t).tex = tex;
+        tableaus(t).rect = tableauRect;
+    end
+
+    %% Optional save to file
     save('tableaus.mat', 'tableaus');
 end
