@@ -68,13 +68,13 @@ Adjust `subjID` for each participant. Ensure you call `initExperiment` within ea
 **Purpose:** A clean wrapper for the experiment. Passes `subjID` to `p1()`, `p2()`, etc., so the experimenter can run just this one function.  
 **Notes:** Calls `breakScreen` between sections.
 
-### p1() and p1Instruct() :contentReference[oaicite:0]{index=0}&#8203;:contentReference[oaicite:1]{index=1}&#8203;:contentReference[oaicite:2]{index=2}&#8203;:contentReference[oaicite:3]{index=3}
+### p1() and p1Instruct() 
 **Inputs:** _None_  
 **Outputs:** _None_  
 **Purpose:** Facilitates section one of the experiment (piece presentation alone).  
 **Notes:** Uses `p1Instruct()` to display instructions.
 
-### p2() and p2Instruct() :contentReference[oaicite:4]{index=4}&#8203;:contentReference[oaicite:5]{index=5}&#8203;:contentReference[oaicite:6]{index=6}&#8203;:contentReference[oaicite:7]{index=7}
+### p2() and p2Instruct()
 **Inputs:** _None_  
 **Outputs:** _None_  
 **Purpose:** Facilitates section two of the experiment (piece in tableau context).  
@@ -86,7 +86,7 @@ Adjust `subjID` for each participant. Ensure you call `initExperiment` within ea
 **Purpose:** Facilitates section three of the experiment (interactive matching without reward).  
 **Notes:** Uses `p3Instruct()` to display instructions.
 
-### p4() and p4Instruct() :contentReference[oaicite:8]{index=8}&#8203;:contentReference[oaicite:9]{index=9}&#8203;:contentReference[oaicite:10]{index=10}&#8203;:contentReference[oaicite:11]{index=11}
+### p4() and p4Instruct() 
 **Inputs:** _None_  
 **Outputs:** _None_  
 **Purpose:** Facilitates section four of the experiment (4-AFC piece–tableau matching).  
@@ -100,7 +100,7 @@ Adjust `subjID` for each participant. Ensure you call `initExperiment` within ea
 
 ---
 
-### calibrateTobii :contentReference[oaicite:12]{index=12}&#8203;:contentReference[oaicite:13]{index=13}
+### calibrateTobii
 | Input        | Type    | Description                            |
 | ------------ | ------- | -------------------------------------- |
 | `window`     | Handle  | PTB window pointer                     |
@@ -115,7 +115,7 @@ Adjust `subjID` for each participant. Ensure you call `initExperiment` within ea
 
 ---
 
-### drawFixation :contentReference[oaicite:14]{index=14}&#8203;:contentReference[oaicite:15]{index=15}
+### drawFixation
 **Inputs:** `window`, `windowRect`, `color`  
 **Outputs:** _None_  
 **Purpose:** Draws a horizontal and vertical line at the center of the screen as a fixation cross.
@@ -130,28 +130,28 @@ Adjust `subjID` for each participant. Ensure you call `initExperiment` within ea
 
 ---
 
-### getTetrino :contentReference[oaicite:16]{index=16}&#8203;:contentReference[oaicite:17]{index=17}
+### getTetrino
 **Inputs:** `params`  
 **Outputs:** `pieces` (struct array)  
 **Purpose:** Creates Tetris piece textures and metadata in a struct for presentation.
 
 ---
 
-### getTrig :contentReference[oaicite:18]{index=18}&#8203;:contentReference[oaicite:19]{index=19}
+### getTrig 
 **Inputs:** `piece`, `eventType`  
 **Outputs:** `trig` (integer)  
 **Purpose:** Maps a Tetris piece and event type to an EEG trigger code.
 
 ---
 
-### initExperiment :contentReference[oaicite:20]{index=20}&#8203;:contentReference[oaicite:21]{index=21}
+### initExperiment
 **Inputs:** `subjID`, `demoMode`, `baseDataDir`  
 **Outputs:** `window`, `windowRect`, `expParams`, `ioObj`, `address`, `eyetracker`  
 **Purpose:** Initializes Psychtoolbox, sync tests, experiment parameters, EEG I/O, and eye-tracker connection/calibration.
 
 ---
 
-### saveDat :contentReference[oaicite:22]{index=22}&#8203;:contentReference[oaicite:23]{index=23}
+### saveDat
 **Inputs:** `section`, `subjID`, `data`, `params`, `demoMode`  
 **Outputs:** _None_  
 **Purpose:** Saves behavioral and pupillometry data (or demo log) to organized subject folders.  
@@ -159,7 +159,7 @@ Adjust `subjID` for each participant. Ensure you call `initExperiment` within ea
 
 ---
 
-### take5Brubeck :contentReference[oaicite:24]{index=24}&#8203;:contentReference[oaicite:25]{index=25}
+### take5Brubeck
 **Inputs:** `window`, `params`  
 **Outputs:** _None_  
 **Purpose:** Displays a break screen between blocks with a progress bar.  
