@@ -1,4 +1,0 @@
-DemoMode = ON
-Subject = P01
-Trials = 1
-Date = 2025-04-18 11:43:33

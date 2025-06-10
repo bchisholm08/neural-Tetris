@@ -1,3 +1,11 @@
+%-------------------------------------------------------
+% Author: Brady M. Chisholm
+% University of Minnesota Twin Cities, Dpt. of Neuroscience
+% Date: 6.9.2025
+%
+% Description: 
+%                            
+%-------------------------------------------------------
 function allTrials = loadPupilData(subjID, baseDataDir, doPlot)
 %   allTrials = loadAllPupilData('P01');                    % No plotting
 %   allTrials = loadAllPupilData('P01', '/path/to/data');   % No plotting

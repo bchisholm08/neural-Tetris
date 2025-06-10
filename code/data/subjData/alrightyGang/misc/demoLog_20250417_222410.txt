@@ -1,4 +1,0 @@
-DemoMode = ON
-Subject = alrightyGang
-Trials = 1
-Date = 2025-04-17 22:25:01

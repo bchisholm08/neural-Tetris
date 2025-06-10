@@ -1,3 +1,0 @@
-function p3()
-  % CURRENTLY PAUSED UNTIL MORE TIME TO CODE SACCADES...
-end

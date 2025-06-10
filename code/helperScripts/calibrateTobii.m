@@ -1,4 +1,12 @@
-function calibrationData = calibrateTobii(window, windowRect, eyetracker, params)
+%-------------------------------------------------------
+% Author: Brady M. Chisholm
+% University of Minnesota Twin Cities, Dpt. of Neuroscience
+% Date: 6.9.2025
+%
+% Description: 
+%                            
+%-------------------------------------------------------
+function calibrationData = calibrateTobii(window, windowRect, eyetracker, expParams)
 % Inputs:
 %   window     : Psychtoolbox onscreen window pointer.
 %   windowRect : [left top right bottom] rect from Screen.
@@ -187,11 +195,11 @@ while ~userDecided
         return;
     elseif keyCode(sKey)
         % Save calibration
-eyeDataDir = fullfile(params.baseDataDir, 'subjData', params.subjID, 'eyeData');
+eyeDataDir = fullfile(expParams.baseDataDir, 'subjData', expParams.subjID, 'eyeData');
 if ~exist(eyeDataDir, 'dir')
     mkdir(eyeDataDir);
 end
-calibFileName = sprintf('calibration_%s.mat', params.timestamp);
+calibFileName = sprintf('calibration_%s.mat', expParams.timestamp);
 save(fullfile(eyeDataDir, calibFileName), 'calibration_result');
 calibrationSaved = true;
 calibrationData = calibration_result;

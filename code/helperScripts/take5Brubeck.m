@@ -1,26 +1,30 @@
+%-------------------------------------------------------
+% Author: Brady M. Chisholm
+% University of Minnesota Twin Cities, Dpt. of Neuroscience
+% Date: 6.9.2025
+%
+% Description: 
+%                            
+%-------------------------------------------------------
 function take5Brubeck(window, params)
-
-    % Break parameters (sec)
-    minBreakTime = params.rule.minBreakTime;  
-    maxBreakTime = params.rule.maxBreakTime; 
+    % break parameters (sec)
+    minBreakTime = params.rule.minBlockBreakTime;  
+    maxBreakTime = params.rule.maxBlockBreakTime; 
     startTime = GetSecs;
     
     while GetSecs - startTime < maxBreakTime
-        % calculate useful #'s 
+        % get useful #'s 
         elapsed = GetSecs - startTime;
         remaining = max(minBreakTime - elapsed, 0);
         
-        % break message, display 
+        % break message
         breakText = sprintf(['Take a break!\n\n' ...
-    'Required Break Remaining: %d seconds\n' ...
-    ''...
-    'Maximum Break Time Remaining: %d seconds\n\n' ...
-    ''...
+    'Required Break Remaining: %d seconds\n\n Maximum Break Remaining: %d seconds\n\n'...
     'Press SPACE to continue.'], ceil(remaining), ceil(maxBreakTime - elapsed));
         Screen('TextSize', window, 24);
         DrawFormattedText(window, breakText, 'center', 'center', [1 1 1]);
         
-        % Add progress bar
+        % progress bar
         barWidth = 400;
         barHeight = 20;
         barPos = [params.screen.width/2 - barWidth/2, params.screen.height*0.7, params.screen.width/2 + barWidth/2, params.screen.height*0.7 + barHeight];
@@ -31,7 +35,7 @@ function take5Brubeck(window, params)
         Screen('Flip', window);
         
         % Check for early exit (only after minBreakTime)
-        [~, ~, keyCode] = KbCheck;
+        [~, ~, keyCode] = KbCheck; 
         if elapsed >= minBreakTime && keyCode(KbName('Space'))
             break;
         end
