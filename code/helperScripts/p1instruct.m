@@ -3,7 +3,7 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: 
+% Description: Handles displaying P1 experiment instructions 
 %                            
 %-------------------------------------------------------
 function p1instruct(window, expParams)

@@ -3,7 +3,10 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: 
+% Description: Gets triggers for P1, P2, and P4. Triggers for P5 gameplay 
+% are unique and contained within that specific script. Uses basecode 
+% for pieces and depending on the event adds on the offset, giving the
+% required trigger. 
 %                            
 %-------------------------------------------------------
 function trig = getTrig(piece, eventType)

@@ -3,7 +3,7 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: 
+% Description: Handles Tobii calibration 
 %                            
 %-------------------------------------------------------
 function calibrationData = calibrateTobii(window, windowRect, eyetracker, expParams)
@@ -17,6 +17,7 @@ function calibrationData = calibrateTobii(window, windowRect, eyetracker, expPar
 %                     Returns empty if the user aborts or never saves.
 
 %% ---------------- Setup Colors, Keys, and PTB Info ----------------
+
 HideCursor(window);
 Screen('TextFont', window, 'Arial');
 Screen('TextSize', window, 24);
@@ -80,7 +81,7 @@ try
 %-------------------------------------------------
 % Setup calibration object
 calib = ScreenBasedCalibration(eyetracker);        
-% We'll define your points for calibration here, same as Gabor code:
+% We'll define your points for calibration here
 lb = 0.1;  % left bound
 xc = 0.5;  % horizontal center
 rb = 0.9;  % right bound
@@ -101,7 +102,8 @@ calib.enter_calibration_mode();
 
 % For each calibration point, show dot & collect data
 [screenXpixels, screenYpixels] = Screen('WindowSize', window);
-for i = 1:size(points_to_calibrate,1)
+
+for i = 1:size(points_to_calibrate, 1)
     pt = points_to_calibrate(i,:);
     
     % Draw large dot (red) + smaller dot (white center)
@@ -126,6 +128,50 @@ Screen('Flip', window);
 % apply calibration
 calibration_result = calib.compute_and_apply();
 
+% add in post calibration stats to help the experimenter decide whether to
+% continue with calibration or recalibrate 
+% Initialize counters
+totalPoints = 0;
+leftValid = 0;
+rightValid = 0;
+
+points = calibration_result.CalibrationPoints;
+for i = 1:length(points)
+    for j = 1:length(points(i).LeftEye)
+        totalPoints = totalPoints + 1;
+
+        if points(i).LeftEye(j).Validity == CalibrationEyeValidity.ValidAndUsed
+            leftValid = leftValid + 1;
+        end
+
+        if points(i).RightEye(j).Validity == CalibrationEyeValidity.ValidAndUsed
+            rightValid = rightValid + 1;
+        end
+    end
+end
+
+% Compute %-age loss
+leftLossPercent = 100 * (1 - leftValid / totalPoints);
+rightLossPercent = 100 * (1 - rightValid / totalPoints);
+
+% resultsMsg = sprintf(['Calibration Stats:\n\n' ...
+%     'Total Samples: %d\n' ...
+%     'Left Eye Loss: %.1f%%\n' ...
+%     'Right Eye Loss: %.1f%%\n\n'], ...
+%     totalPoints, leftLossPercent, rightLossPercent);
+
+% Format results message
+msg = sprintf(['Calibration Stats:\n' ...
+    'Total Samples: %d\n' ...
+    'Left Eye Loss: %.1f%%\n' ...
+    'Right Eye Loss: %.1f%%\n\n' ...
+    'Press "S" to SAVE calibration and finish.\n' ...
+    'Press "R" to Recalibrate.\n' ...
+    'Press "ESC" to Abort without saving.\n'], totalPoints, leftLossPercent, rightLossPercent);
+
+DrawFormattedText(window, msg, 'center', 'center', white);
+Screen('Flip', window);
+
 % Exit calibration mode
 calib.leave_calibration_mode();
 
@@ -141,8 +187,6 @@ end
 %-------------------------------------------------
 % Next, show all points from the calibration result similarly to your Gabor code.
 % We’ll draw them in the correct color for each eye (left=red, right=blue).
-
-points = calibration_result.CalibrationPoints;
 
 Screen('FillRect', window, bgColor);
 
@@ -208,25 +252,24 @@ calibrationData = calibration_result;
         calibrateAgain = false;
         userDecided = true;
     elseif keyCode(rKey)
-        % Recalibrate (loop again)
         disp('Recalibration selected...');
-        calibrateAgain = true;
+        calibrateAgain = true; % setting these to true sends us back to the top of the loop 
         userDecided = true;
             end
         end
     end
 catch ME
-    % If something goes wrong, restore cursor & rethrow
+    % If error, give cursor back & rethrow
     ShowCursor(window);
     rethrow(ME);
 end
 
-% If user reached here and saved
+% give cmd output on save 
 ShowCursor(window);
 if calibrationSaved
     disp('Calibration finished and saved to "calibrationData".');
 else
     disp('No calibration data saved.');
-end
+end 
 
-end
+end % function end 

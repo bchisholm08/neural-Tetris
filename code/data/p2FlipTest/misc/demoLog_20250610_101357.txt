@@ -1,5 +1,0 @@
-DemoMode = ON
-
-Subject = p2FlipTest
-Trials = 20
-Date = 2025-06-10 10:13:57

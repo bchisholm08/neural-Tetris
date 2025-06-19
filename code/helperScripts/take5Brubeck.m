@@ -3,7 +3,9 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: 
+% Description: Handles a break screen for participants. Forces wait for min
+% amount of time, hiding space bar. Only when min breaktime has elapsed
+% does the space bar appear allowing people to proceed
 %                            
 %-------------------------------------------------------
 function take5Brubeck(window, params)

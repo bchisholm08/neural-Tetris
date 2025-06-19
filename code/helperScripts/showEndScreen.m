@@ -3,7 +3,7 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: 
+% Description: Thanks participant for their time amd brain waves 
 %                            
 %-------------------------------------------------------
 function showEndScreen(window, expParams)

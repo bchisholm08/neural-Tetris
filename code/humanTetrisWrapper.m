@@ -3,47 +3,50 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: 
+% Description: Helpful wrapper for all experiment sections and
+% breakscreens. After getting info needed to begin the experiment, the script
+% does an initial call to initExperiment, which gets
+% tons of useful information for us and initializes everything we need.
+% This script passes subjID and expParams to the different sections, while
+% being the arbiter of section breaks as well. Instruction screens are
+% called within each Px() script. This wrapper also completes a calibration
+% before P4 (4-AFC section) and the final section, P5 (natural tetris
+% play). This is all automatically handled by the script. The script also
+% helps clean up errors/crashes in a 'graceful' way
 %                            
 %-------------------------------------------------------
 function humanTetrisWrapper(subjID, demoMode)
-%{
-This script acts as a wrapper for the pX() scripts, and handles
-passing subjID and centralizing experiment setup/teardown.
-
-Improvements over previous version:
-- Calls initExperiment only once to manage PTB window, devices etc 
-- Pass PTB window, expParams, and device handles to pX scripts and break screens
-- Implements a timed break in interExpScreen using expParams.
-- Placeholder for recalibration before Part 4
-%}
 
     % get user inputs, defaults for demoMode 
     if nargin < 1
         subjID = input('Enter a subjID (e.g. ''P01''): ', 's');
+        subjID = strtrim(subjID); % Remove leading/trailing whitespace
     end
     if nargin < 2
         demoMode = 1; % default to demoMode
     end
 
-    % preinit experiment variables 
-    window = [];
-    windowRect = [];
-    expParams = struct(); % init struct
-    ioObj = [];         
-    address = [];       
-    eyetracker = [];    
+    % initialize 
+    % window = [];
+    % windowRect = [];
+    % expParams = struct(); % init struct
+    % ioObj = [];         
+    % address = [];       
+    % eyetracker = [];    
+  
     %{ 
-add a lazy check to fix this bug. 
+add a 'lazy' check to fix bug. 
 
 if not found on path automatically add or something of the sort
 
 initExperiment is not found in the current folder or on the MATLAB path, but exists in:
     Z:\13-humanTetris\code\helperScripts
+
     %}  
 
-
     %% main exp sections block 
+    addpath('Z:\13-humanTetris\code');
+    addpath("Z:\13-humanTetris\code\helperScripts");
     try
 
         fprintf('Initializing experiment environment...\n');
@@ -56,7 +59,7 @@ This is to not clog up main experiment scripts, but also have consistent expPara
 %}
 
         %% call initExperiment
-        [window, windowRect, expParams, ioObj, address, eyetracker] = initExperiment(subjID, demoMode, 1);
+        [window, windowRect, expParams, ioObj, address, eyetracker] = initExperiment(subjID, demoMode);
         %% perform sanity check on initExperiment return 
         if isempty(window) || ~isstruct(expParams) || isempty(fieldnames(expParams))
             error('humanTetrisWrapper:InitializationFailed', 'initExperiment did not return valid window or expParams. Aborting.');
@@ -78,7 +81,7 @@ This is to not clog up main experiment scripts, but also have consistent expPara
 
         % p3, 4 afc 
         % --- Recalibration before Part 4 ---
-        if ~demoMode && ~isempty(eyetracker) % Check eyetracker exists and is not empty
+        if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
             fprintf('Recalibrating eye tracker before 4-AFC...\n');
             DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
             Screen('Flip', window);
@@ -172,7 +175,7 @@ This is to not clog up main experiment scripts, but also have consistent expPara
         % Re-throw the error to display details in the command window
         rethrow(ME);
     end
-
+    
     % --- Final Cleanup after successful experiment ---
     % If the try block completes successfully, ensure PTB is closed.
     % This is already handled by sca in showEndScreen, but including it here

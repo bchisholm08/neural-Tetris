@@ -5,14 +5,21 @@
 % 
 % ADAPTED FOR NOEL LAB RESEARCH FROM:
 % Matt Fig (2025). Tetris for MATLAB (https://www.mathworks.com/matlabcentral/fileexchange/34513-tetris-for-matlab), MATLAB Central File Exchange. Retrieved May 7, 2025.
+% 
+% Description: A mostly self contained (i.e. not many outside function
+% calls--many local functions) version of Tetris modified for our
+% experiment interests in participant performance, and focused on 
+% accurate data collection
 %
-% Description: 
-%             Mostly self contained version of Tetris for our experiment.  
 %-------------------------------------------------------
 function p5(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker)
 try
     %% set up & instruct 
+    p5StartTimestamp = datetime("now");
+
     fprintf('p5: Initializing Tetris game environment...\n');
+
+
     
     % Display instructions for Part 5
     p5instruct(window, expParams); %
@@ -29,12 +36,12 @@ try
     % init struct 
     S = struct(); % to store game state 
 
-    %FIXME add in code that will save board state anytime it changes 
+    %FIXME add in code that will save board state anytime it changes  
     
     % piece and board 
     S.boardMatrix = zeros(10, 20); % 10 wide by 20 high board 
 
-    S.pieceColors = {[1 0 0], [0 1 0], [0 0 1], [1 1 0], [1 0 1], [0 1 1], [1 0.5 0]}; % I, T, L, J, Z, S, O; same orderign 
+    S.pieceColors = {[1 0 0], [0 1 0], [0 0 1], [1 1 0], [1 0 1], [0 1 1], [1 0.5 0]}; % I, T, L, J, Z, S, O; same ordering 
     
     S.pieceDefs = {[194:197],[184 185 186 195],[184 185 186 196],...
                    [184 185 186 194],[194 195 185 186],[184 195 185 196], [185 186 195 196]};
@@ -46,14 +53,14 @@ try
     % init logs 
     eventLog = {}; % cell array for time events 
     
-    %% GAME LOOP 
+
     numGames = expParams.p5.options.gamesAllowed;
-    
+    %% GAME LOOP 
     for gameNum = 1:numGames
         
         % init new game
         % fprintf('p5: Starting Game %d of %d...\n', gameNum, numGames);
-        % have this deal with TIME and not th e
+        % have this deal with TIME and not the num of games 
         
         % reset game state vars
         S.boardMatrix(:) = false;
@@ -63,7 +70,7 @@ try
         S.gameOver = false;
         S.currentPiece = []; % indices of current falling piece
         S.currentPieceID = 0;
-        S.nextPieceID = ceil(rand*7); % pre-determine first piece randomly 
+        S.nextPieceID = ceil(rand*7); % pre-determine first piece randomly s
         
         % save game start 
         logEvent('game_start', gameNum, '');
@@ -84,15 +91,24 @@ try
         
         % single game loop 
         while ~S.gameOver
+             
             
+            % --- 1. Check for Pause ---
+            % This function will pause if 'p' is pressed and return the duration.
+            pauseDuration = handlePause(window, expParams.keys);
+            if pauseDuration > 0
+                % Add the pause duration to our timer to "stop the clock"
+                lastDropTime = lastDropTime + pauseDuration;
+            end
+
             % handle key board input 
             handleInput();
             
             %  update the state of the game 
-            dropInterval = (S.levelFactor ^ (S.currentLevel - 1)); % time between drops gets shorter
+            dropInterval = (S.levelFactor ^ (S.currentLevel - 1));
             if (GetSecs - lastDropTime) > dropInterval
-                movePiece(0, -1); % try to move piece down
-                lastDropTime = GetSecs;
+                movePiece(0, -1); % Attempt to move piece down
+                lastDropTime = GetSecs; % Reset timer AFTER the drop
             end
             
             % draw it all up 
@@ -113,21 +129,23 @@ try
             fprintf('p5: Saved pupillometry data for game %d.\n', gameNum);
         end
 
-
-        %FIXME add in "wait for the next game to begin" while under the
+        % 6.11.25 FIXME add in "wait for the next game to begin" while under the
         % game time ceiling. Once < a certain threshold, just give "wait
         % for game to end" message 
-        DrawFormattedText(window, sprintf('Game Over!\n\nFinal Score: %d\n\nWait for game to proceed.....', S.currentScore), 'center', 'center', [255 0 0]);
+        DrawFormattedText(window, sprintf('Game Over!\n\nFinal Score: %d\n\nWait to proceed.....', S.currentScore), 'center', 'center', [255 0 0]);
         Screen('Flip', window);
         WaitSecs(4); 
         
         if gameNum < numGames
-            betweenSectionBreakScreen(window, expParams); %
+            betweenSectionBreakScreen(window, expParams); 
         end
     end
 
     %% save all behavioral data for this section 
     fprintf('p5: All games complete. Saving event data...\n');
+    expParams.rule.initExperiment_expMasterEndTime = datetime('now');
+    expParams.rule.initExperiment_expMasterEndTime.Format = 'HH:mm:ss_M/d/yy';
+    expParams.p2.options.sectionDoneFlag = 1; 
     saveDat('p5_events', subjID, eventLog, expParams, demoMode);
     
 catch ME
@@ -191,35 +209,49 @@ end
         end
     end
 
-    function didMove = movePiece(colOffset, rowOffset)
-        % Erase current piece from board
-        S.boardMatrix(S.currentPiece) = 0;
-        
-        newPiece = S.currentPiece + colOffset + (rowOffset * 10);
-        
-        % Check for collisions
-        cols = ceil(newPiece/10);
-        rows = rem(newPiece-1, 10)+1;
-        
-        didMove = true;
-        if any(cols < 1) || any(cols > 20) || any(rows < 1) || any(rows > 10) || any(S.boardMatrix(newPiece))
-            % Collision detected, move is invalid
-            newPiece = S.currentPiece; % Revert to old position
-            didMove = false;
-        end
-        
-        % Redraw piece in its new (or old) position
-        S.boardMatrix(newPiece) = S.currentPieceID;
-        S.currentPiece = newPiece;
-        
-        % If movement was down and it failed, the piece has locked
-        if rowOffset < 0 && ~didMove
-            logEvent('piece_lock', S.currentPieceID, '');
-            checkForLineClears();
-            spawnNewPiece();
-        end
+   function didMove = movePiece(colOffset, rowOffset)
+    
+    % Get the current row positions of all blocks in the piece
+    currentRows = rem(S.currentPiece - 1, 10) + 1;
+    
+    % --- BOUNDARY CHECK ---
+    % If trying to move left (colOffset = -1) but already at the left wall (min(rows) is 1)
+    if colOffset < 0 && min(currentRows) == 1
+        return; % Abort the move entirely
     end
+    % If trying to move right (colOffset = 1) but already at the right wall (max(rows) is 10)
+    if colOffset > 0 && max(currentRows) == 10
+        return; % Abort the move entirely
+    end
+    % --- END BOUNDARY CHECK ---
 
+    % Erase current piece from board
+    S.boardMatrix(S.currentPiece) = 0;
+    
+    % Calculate new proposed position
+    newPiece = S.currentPiece + colOffset + (rowOffset * 10);
+    
+    % Check for collisions with other pieces or the bottom of the board
+    cols = ceil(newPiece/10);
+    
+    didMove = true;
+    if any(cols < 1) || any(S.boardMatrix(newPiece))
+        % Collision detected, move is invalid
+        newPiece = S.currentPiece; % Revert to old position
+        didMove = false;
+    end
+    
+    % Redraw piece in its new (or old) position
+    S.boardMatrix(newPiece) = S.currentPieceID;
+    S.currentPiece = newPiece;
+    
+    % If movement was down and it failed, the piece has locked
+    if rowOffset < 0 && ~didMove
+        logEvent('piece_lock', S.currentPieceID, '');
+        checkForLineClears();
+        spawnNewPiece();
+    end
+end
 
 function rotatePiece()
     % This function correctly rotates a piece by treating its blocks as
@@ -294,7 +326,7 @@ end
             S.boardMatrix(:, fullRows) = []; % Delete full rows
             S.boardMatrix = [S.boardMatrix, zeros(10, numCleared)]; % Add empty rows at the top
             
-            % Check for level up
+            % Check for level up (can likely comment out...) 
             if floor(S.currentLines / S.linesForLevelUp) >= S.currentLevel
                 S.currentLevel = S.currentLevel + 1;
             end
@@ -338,8 +370,5 @@ end
         % Draw Score, Level, Lines
         scoreText = sprintf('Score: %d\nLevel: %d\nLines: %d', S.currentScore, S.currentLevel, S.currentLines);
         DrawFormattedText(window, scoreText, boardRect(3) + 20, boardRect(2), [255 255 255]);
-        
-        % FIXME: Draw Next Piece Preview
-    end
-
-end
+    end % draw game state function end 
+end % p5 function end 

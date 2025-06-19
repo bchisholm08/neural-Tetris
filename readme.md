@@ -1,6 +1,6 @@
-# Human Tetris EEG & Pupillometry Experiment
+# Human Tetris Experiment; Jean-Paul Noel Neuroscience Lab 
 
-A MATLAB/Psychtoolbox implementation of a Tetris-based EEG and pupillometry experiment exploring how neural representations of visual objects vary across contexts of action and reward.
+A neuroscience experiment exploring how neural reprentations of visual objects may vary depending on the context that surrounds an object, and possible actions or rewards an object encodes. 
 
 ## Table of Contents
 - [Overview](#overview)

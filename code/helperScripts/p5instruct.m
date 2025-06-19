@@ -3,7 +3,7 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: 
+% Description: Instructions for P5, natural Tetris section
 %                            
 %-------------------------------------------------------
 function p5instruct(window, expParams)

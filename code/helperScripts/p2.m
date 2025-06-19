@@ -3,7 +3,9 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: 
+% Description: Gives P2 stimuli, Tetris pieces in their context, i.e. their
+% respective tableaus, or not. Focused on getting evoked response from
+% congruent and non-congruent piece/tableau stimuli 
 %                            
 %-------------------------------------------------------
 function p2(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker)
@@ -14,7 +16,7 @@ try % begin try for experiment after init exp
     p2instruct(window, expParams)
 
     % tableaus is a 1x28 struct of all piece tableaus (7 x 4) & get pieces, 1x7 struct of same 
-    tableaus = getTableaus(window, expParams); % 
+    tableaus = getTableaus(window, expParams); % uses expParams to 
     pieces = getTetrino(expParams);
 
     pieceNames = {'I','Z','O','S','J','L','T'}; % Master list of piece names
@@ -96,6 +98,9 @@ try % begin try for experiment after init exp
     currentBlock = 0; % track block changes 
     currentPhase = 0; % track phase 
 
+    % initialize a block struct for pupil data 
+    % blockGazeData = struct('DeviceTimeStamp',{}, 'Left',{}, 'Right',{}, 'Pupil',{});
+
     for i = 1:length(stimulusSequence) % use 'i' counter for stimuli 
         trialInfo = stimulusSequence(i); % get curr 'i' from stimuli 
 
@@ -120,33 +125,56 @@ if trialInfo.blockNum ~= currentBlock || trialInfo.phaseNum ~= currentPhase
             blockGazeData = struct('DeviceTimeStamp',{}, 'Left',{}, 'Right',{}, 'Pupil',{});
         end
     end
-       currentPhase = trialInfo.phaseNum;
+    currentPhase = trialInfo.phaseNum;
     % Find the correct tableau texture that will be constant for this phase
     tableauToDisplay = tableaus(strcmp({tableaus.piece}, trialInfo.tableauPieceName) & strcmp({tableaus.condition}, trialInfo.tableauConditionDisplayed));
     fprintf('--- Starting Phase %d: Displaying "%s" tableau ---\n', currentPhase, trialInfo.tableauConditionDisplayed);
 end
 
+% get struct w/ piece texture 
 stimulusPieceStruct = pieces(strcmp({pieces.name}, trialInfo.stimulusPieceName));
 
 % 1. Fixation Period (Tableau + Fixation)
+
+
 Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
+
+% draw fixation ontop of tableau 
 drawFixation(window, windowRect, expParams.fixation.color);
+
+% show tableau and fixation 
 fixationOnset = Screen('Flip', window);
-WaitSecs(expParams.fixation.durationSecs);
+
+% pause script, leave fixation on screen 
+WaitSecs(expParams.rule.fixationDuration);
 
 % 2. Stimulus Presentation (Tableau + Piece)
+
+% draw tableau for phase, calculate piece centering. Draw stimulus 
 Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
 stimulusPieceRect = CenterRectOnPoint(stimulusPieceStruct.rect, windowRect(3)/2, windowRect(4)/2);
+
+% draw stimulus ontop of tableau 
 Screen('DrawTexture', window, stimulusPieceStruct.tex, [], stimulusPieceRect);
+
+% flip buffers when fixation ends. Record time of appearance 
 stimOnset = Screen('Flip', window);
 
+% send EEG trigger immediately after piece presentation
 if ~demoMode && ~isempty(ioObj), io64(ioObj, address, trialInfo.eegTrigger); end
 
+% tableau and piece are visible. Pause script for stimulus presentation duration
 WaitSecs(expParams.rule.stimulusDuration);
 
 % 3. Inter-Trial Interval (ITI) (Tableau + Fixation)
+
+% prepare ITI on buffer, draw constant tableau for phase 
 Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
+
+% draw fixation ontop of tableau 
 drawFixation(window, windowRect, expParams.fixation.color);
+
+% flip buffers once fixation duration ends. Replace stimulus w/ fixation 
 Screen('Flip', window);
 
 % 4. Data Collection (during ITI)
@@ -166,6 +194,9 @@ blockData(i).fixationOnset = fixationOnset;
 blockData(i).stimOnset = stimOnset;
 blockData(i).eegTrigger = trialInfo.eegTrigger;
 
+% before we wait for the ITI, check for a pause 
+handlePause(window, expParams.keys);
+
 WaitSecs(0.7 + rand * 0.4); % Remainder of ITI
 
     
@@ -179,8 +210,11 @@ WaitSecs(0.7 + rand * 0.4); % Remainder of ITI
     %% --- Save BEHAVIORAL data at the very end ---
     fprintf('p2: Section complete. Saving behavioral data...\n');
     expParams.p2.stimulusSequence = stimulusSequence;
+    expParams.p2.options.sectionDoneFlag = 1; 
+    
+    end
+    % save non-pupil data at the very end 
     saveDat('p2', subjID, blockData, expParams, demoMode);
-    end 
 catch ME
     fprintf(2, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
     fprintf(2, 'ERROR IN SCRIPT: p2.m\n');

@@ -3,7 +3,7 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: 
+% Description: Returns unique tableau 'sets' for each Tetris piece. 
 %                            
 %-------------------------------------------------------
 function tableaus = getTableaus(window,expParams)

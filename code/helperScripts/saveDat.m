@@ -3,78 +3,84 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: 
-%                            
+% Description: Saves subject data in .csv format 
+%
 %-------------------------------------------------------
-function saveDat(section, subjID, data, expParams, demoMode)
-    
-    % Ensure base directory from params, or use fallback
-    assert(isfield(expParams.subjPaths, 'subjRootDir'));
+function saveDat(section, subjID, data, params, demoMode)
+% saveDat: A centralized function to handle data saving for the experiment.
+% For real data, saves behavioral data to .csv and parameters to .mat.
+% For demo mode, saves a detailed .csv log.
 
-    % Root directory for curr subj
-    subjRootDataDir = expParams.subjPaths.subjRootDir;
+% --- Get the correct subject directory paths from the params struct ---
+if ~isfield(params, 'subjPaths') || ~isfield(params.subjPaths, 'behavDir') || ~isfield(params.subjPaths, 'miscDir')
+    error('saveDat:PathError', 'Required subject path fields (.behavDir, .miscDir) not found in params.subjPaths. Check initExperiment.m');
+end
+behavDir = params.subjPaths.behavDir;
+miscDir = params.subjPaths.miscDir;
 
-    % if missing, add timestamp 
-    if ~isfield(expParams, 'timestamp')
-        expParams.timestamp = datestr(now, 'yyyymmdd_HHMMSS');
+% --- DEMO MODE: Write a detailed .csv log ---
+if demoMode
+    fileSaveTimeStamp = datestr(now, 'yyyymmdd_HHMMSS');
+    logFile = fullfile(miscDir, sprintf('demoLog_%s_%s.csv', section, fileSaveTimeStamp));
+
+    try
+        % Convert the struct array to a table for easy writing
+        dataTable = struct2table(data);
+        % Write the table directly to a .csv file
+        writetable(dataTable, logFile);
+        fprintf('Demo log saved as CSV to: %s\n', logFile);
+    catch ME
+        warning('Could not save demo log as .csv, possibly due to inconsistent struct fields. Error: %s', ME.message);
     end
 
-    %% demoMode data save 
-    if demoMode
-        % note demo mode 
-        % error out here on root dir 
-        logFile = fullfile(subjRootDataDir, 'misc', sprintf('demoLog_%s.txt', expParams.timestamp));
-
-        % check folder ex 
-        miscDir = fileparts(logFile);
-        if ~exist(miscDir, 'dir'), mkdir(miscDir); end
-
-        % open log 
-        fid = fopen(logFile, 'w');
-        if fid == -1
-            error('Could not open demo log file for writing: %s', logFile);
-        end
-
-        fprintf(fid, 'DemoMode = ON\n\nSubject = %s\nTrials = %d\nDate = %s\n', subjID, length(data), datestr(now, 'yyyy-mm-dd HH:MM:SS'));
-        fclose(fid);
-
-    %% non demo mode data save 
-    else
-        % Construct date str 
-        dateStr = datestr(now, 'mmddyy');
-       
-        sectionDir = fullfile(subjRootDataDir, section);
-        if ~exist(sectionDir, 'dir')
-            mkdir(sectionDir);
-        end
-
-        % Create .mat (e.g., P01_p1Dat040123.mat)
-        filename = sprintf('%s_%sDat%s.mat', subjID, section, dateStr);
-        savePath = fullfile(sectionDir, filename);
-        % save data and params 
-        save(savePath, 'data', 'expParams', '-v7.3');
-
-        % Optionally, save minimal hardware snapshot if present
-        hwSettings = struct();
-        if isfield(expParams, 'ioAddress'),  hwSettings.ioAddress  = expParams.ioAddress;  end
-        if isfield(expParams, 'eyetracker'), hwSettings.eyetracker = expParams.eyetracker; end
-
-        % Save hardware settings into the misc folder
-        miscPath = fullfile(subjRootDataDir, 'misc');
-        if ~exist(miscPath, 'dir'), mkdir(miscPath); end
-        save(fullfile(miscPath, 'hardware_settings.mat'), 'hwSettings');
-    end
-    % notify save 
-if isfield(expParams, 'currentBlock') && isfield(expParams, 'totalBlocks')
-    blocksRemaining = expParams.totalBlocks - expParams.currentBlock;
-    fprintf('\n==================================\n');
-    fprintf('PUPILLOMETRY DATA SAVED FOR BLOCK #%d\n', expParams.currentBlock);
-    fprintf('==================================\n');
-    fprintf('%d BLOCKS TO GO\n', blocksRemaining);
-    fprintf('==================================\n\n');
+    % --- REAL EXPERIMENT MODE: Save behavioral .csv and params .mat ---
 else
-    fprintf('\n==================================\n');
-    fprintf('PUPILLOMETRY DATA SAVED\n');
-    fprintf('==================================\n\n');
+    dateStr = datestr(now, 'ddmmmyyyy'); % e.g., 16Jun2025
 
+    % 1. Save Behavioral Data to CSV
+    % Construct filename, e.g., P01_p4_behavioral_16Jun2025.csv
+    behavioralFilename = sprintf('%s_%s_behavioral_%s.csv', subjID, section, dateStr);
+    behavioralSavePath = fullfile(behavDir, behavioralFilename);
+
+    try
+        if isstruct(data)
+            % If data is a struct array (from p1, p2, p4), use struct2table
+            dataTable = struct2table(data, 'AsArray', true);
+            % if expParams.p4.options.sectionDoneFlag
+            % % special data processing for p4? Seems to always result in
+            % % crashes 
+            % end 
+        elseif iscell(data)
+            % If data is a cell array (from p5), use cell2table
+            header = {'Timestamp', 'EventType', 'Value1', 'Value2'};
+            dataTable = cell2table(data, 'VariableNames', header);
+        else
+            error('Unsupported data type for logging.');
+        end
+
+        % Write the resulting table to the .csv file
+        writetable(dataTable, logFile);
+        fprintf('Demo log saved as CSV to: %s\n', logFile);
+    catch ME
+        warning('Could not save demo log as .csv. Error: %s', ME.message);
+    end
+
+    % 2. Save Parameters and Full Stimulus Sequence to .MAT
+    % Construct filename, e.g., P01_p4_params_16Jun2025.mat
+    paramsFilename = sprintf('%s_%s_params_%s.mat', subjID, section, dateStr);
+    paramsSavePath = fullfile(miscDir, paramsFilename);
+
+    try
+        % Save the entire params struct, which includes stimulus sequences and all settings
+        save(paramsSavePath, 'params', '-v7.3');
+        fprintf('Experiment parameters for section "%s" saved to: %s\n', section, paramsSavePath);
+    catch ME
+        error('saveDat:MatFileError', 'Could not save parameters .mat file. Error: %s', ME.message);
+    end
+end
+
+% --- Final Notification ---
+fprintf('\n==================================\n');
+fprintf('SAVE COMPLETE FOR SECTION: %s\n', upper(section));
+fprintf('==================================\n\n');
 end

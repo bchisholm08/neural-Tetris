@@ -3,7 +3,7 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: 
+% Description: Returns textures of the seven Tetris pieces we use 
 %                            
 %-------------------------------------------------------
 function pieces = getTetrino(params)

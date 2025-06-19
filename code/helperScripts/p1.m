@@ -3,7 +3,9 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: 
+% Description: First section of the human tetris experiment. This section
+% is focused on obtaining evoked responses to each of the tetris pieces.
+% Each piece is presented 
 %                            
 %-------------------------------------------------------
 function p1(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker)
@@ -14,17 +16,6 @@ p1instruct(window, expParams);
 
 pieces = getTetrino(expParams);
 nPieces = length(pieces); 
-
-% build data structure
-% should be a structure equal to the number of trials... 
-data = repmat(struct('block', [], 'trial', [], 'piece', [], ...
-                 'fixationOnset', [], 'onset', [], ...
-                 'eegTrigger', [], 'gazeData', []), ...
-                 expParams.p1.options.totalP1Trials, 1);
-
-% do randomization and determine order of presentation etc. Adding this into our data struct would allow for us
-% to perform checks throughout the experiment that values are lining up as
-% we expect, i.e. trial #10 is actually pID5 as intended
 
 presentationPieceOrder = randi(nPieces, 1, expParams.p1.options.totalP1Trials);
 % returns random list of numbers from 1 to 7, for the number of totalP1Trials input 
@@ -80,7 +71,7 @@ for t = 1:expParams.p1.options.trialsPerBlock
         io64(ioObj, address, eegTrigger);
     end
     
-    % fixme 
+    % fixme (rm piece letter? I would like all the user output formatted the same 
     fprintf('B#%d/T#%d | pID = %d (%s) | eegTrig = %d\n', block, t, pieceID, pieceName, eegTrigger);
     
     % piece is on screen. pause for length of presentation duration.
@@ -100,7 +91,8 @@ for t = 1:expParams.p1.options.trialsPerBlock
         gazeData = eyetracker.get_gaze_data();
     end
     
-    % Log behavioral data for this trial
+    % Log behavioral data for this trial.  
+    % ordering is directly reflected in .csv file 
     data(trialIndex).block = block;
     data(trialIndex).trial = t;
     data(trialIndex).pieceID = pieceID;
@@ -115,7 +107,10 @@ for t = 1:expParams.p1.options.trialsPerBlock
     if ~demoMode && ~isempty(gazeData)
         blockGazeData = [blockGazeData; gazeData];
     end
-    
+
+    % during this time I think we should check for pause 
+    handlePause(window, expParams.keys);
+
     % The fixation cross is now on screen. Wait for the rest of the ITI.
     WaitSecs(itiDuration);
     
@@ -123,7 +118,7 @@ end % --- End of trial loop ---
     %% give participants a break betwixt blocks
     if block < expParams.p1.options.blocks
         % save dat first 
-        if ~demoModes
+        if ~demoMode
             pupilFileName = fullfile(expParams.subjPaths.eyeDir, sprintf('%s_p1_block%02d_pupilDat.mat', subjID, block));
             save(pupilFileName, 'blockGazeData', '-v7.3');
             fprintf('p1: Saved pupillometry data for block %d.\n', block);
@@ -136,16 +131,18 @@ end % --- End of trial loop ---
     end % loop used to be for saving WHILE a break is given, now is just for saving with no break 
 end % p1 block end
 
-%  if last block, save pupil data 
+%  if last block, ensure save pupil data 
 if ~demoMode
     pupilFileName = fullfile(expParams.subjPaths.eyeDir, sprintf('%s_p1_block%02d_pupilDat.mat', subjID, block));
     save(pupilFileName, 'blockGazeData', '-v7.3');
     fprintf('p1: Saved pupillometry data for final block %d.\n', block);
 end
 
-%% Save behavioral data @ end
-expParams.pieceOrder = presentationPieceOrder;
-expParams.timestamp = datestr(now, 'yyyymmdd_HHMMSS');
+% %% Save behavioral data @ end
+% expParams.pieceOrder = presentationPieceOrder;
+
+% below may override original 6.13.25 REMOVED NOT NEEDED
+% expParams.timestamp = datestr(now, 'yyyymmdd_HHMMSS');
 
 % not sure if this will be useful or not--too simple to NOT include 
 expParams.p1.options.sectionDoneFlag = 1;
