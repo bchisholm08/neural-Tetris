@@ -6,7 +6,7 @@
 % Description: Returns textures of the seven Tetris pieces we use 
 %                            
 %-------------------------------------------------------
-function pieces = getTetrino(params)
+function pieces = getTetrino(expParams)
     % PIECE IDS
     % I = 1, Z = 2, O = 3, S = 4, J = 5, L = 6, T = 7
     shapes = {
@@ -41,13 +41,13 @@ function pieces = getTetrino(params)
                     innerRow = rowStart + border : rowStart + blockSize - border;
                     innerCol = colStart + border : colStart + blockSize - border;
 
-                    color = reshape(params.colors.piece, 1, 1, 3);
+                    color = reshape(expParams.colors.piece, 1, 1, 3);
                     img(innerRow, innerCol, :) = repmat(color, length(innerRow), length(innerCol), 1);
                 end
             end
         end
 
-        pieces(p).tex = Screen('MakeTexture', params.window, img);
+        pieces(p).tex = Screen('MakeTexture', expParams.screen.window, img);
         pieces(p).rect = [0 0 width * blockSize height * blockSize];
         pieces(p).pID = p;                % define piece ID
         pieces(p).name = pieceNames{p};   % char  label

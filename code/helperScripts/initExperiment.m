@@ -176,6 +176,7 @@ PsychDefaultSetup(2); %FIXME this depends based on demo or REAL DEAL data mode
 screens = Screen('Screens');
 screenNumber = max(screens);
 
+%% initialize the screen and save info to our params
 [window, windowRect] = PsychImaging('OpenWindow', screenNumber, expParams.colors.background);
 [screenXpixels, screenYpixels] = Screen('WindowSize', window);
 [xCenter, yCenter] = RectCenter(windowRect);
@@ -186,14 +187,13 @@ HideCursor;
 topPriorityLevel = MaxPriority(window);
 Priority(topPriorityLevel);
 
-%% save screen info to our exp. params
-expParams.window = window;
+expParams.screen.window = window;
 expParams.screen.windowRect = windowRect; % save windowRect
 expParams.screen.width = screenXpixels;
 expParams.screen.height = screenYpixels;
 expParams.screen.center = [xCenter, yCenter];
 expParams.screen.screenNumber = screenNumber;
-expParams.screen.ifi = Screen('GetFlipInterval', window); % save inter-frame interval
+expParams.screen.ifi = Screen('GetFlipInterval', expParams.screen.window); % save inter-frame interval
 
 fprintf('Psychtoolbox initialized successfully.\n');
 
@@ -351,8 +351,8 @@ else % REAL EXPERIMENT MODE
 end % end demoMode block handling
 
 % Fixation params
-expParams.fixation.size = 20; % pixels for cross arms
-expParams.fixation.lineWidth = 4; % in pixels
+expParams.fixation.size = 10; % pixels for cross arms
+expParams.fixation.lineWidth = 2; % in pixels
 expParams.fixation.color = expParams.colors.white;
 expParams.fixation.type = 'cross'; % 'dot' / 'cross'
 

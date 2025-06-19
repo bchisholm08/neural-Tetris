@@ -11,12 +11,25 @@
 function p2(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker)
 
 try % begin try for experiment after init exp
+
+window     = expParams.screen.window;
+windowRect = expParams.screen.windowRect;
+cx = expParams.screen.center(1);
+cy = expParams.screen.center(2);
+w = expParams.screen.width;
+h = expParams.screen.height;
+
     %% Section 2: Tableaus and contexts
     fprintf('p2: Initializing and pre-generating stimulus sequence...\n');
     p2instruct(window, expParams)
 
     % tableaus is a 1x28 struct of all piece tableaus (7 x 4) & get pieces, 1x7 struct of same 
     tableaus = getTableaus(window, expParams); % uses expParams to 
+for t = 1:numel(tableaus)
+    if ~isfield(tableaus(t),'tex') || isempty(tableaus(t).tex)
+        error('getTableaus didn''t build texture for entry %d!', t)
+    end
+end
     pieces = getTetrino(expParams);
 
     pieceNames = {'I','Z','O','S','J','L','T'}; % Master list of piece names
@@ -128,6 +141,12 @@ if trialInfo.blockNum ~= currentBlock || trialInfo.phaseNum ~= currentPhase
     currentPhase = trialInfo.phaseNum;
     % Find the correct tableau texture that will be constant for this phase
     tableauToDisplay = tableaus(strcmp({tableaus.piece}, trialInfo.tableauPieceName) & strcmp({tableaus.condition}, trialInfo.tableauConditionDisplayed));
+   
+    % help with screen positioning issue
+    if demoMode
+         fprintf('DEBUG: %s–%s rect = [%d %d %d %d]\n', trialInfo.tableauPieceName, trialInfo.tableauConditionDisplayed, tableauToDisplay.rect);
+    end 
+
     fprintf('--- Starting Phase %d: Displaying "%s" tableau ---\n', currentPhase, trialInfo.tableauConditionDisplayed);
 end
 
@@ -135,7 +154,6 @@ end
 stimulusPieceStruct = pieces(strcmp({pieces.name}, trialInfo.stimulusPieceName));
 
 % 1. Fixation Period (Tableau + Fixation)
-
 
 Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
 
@@ -152,7 +170,7 @@ WaitSecs(expParams.rule.fixationDuration);
 
 % draw tableau for phase, calculate piece centering. Draw stimulus 
 Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
-stimulusPieceRect = CenterRectOnPoint(stimulusPieceStruct.rect, windowRect(3)/2, windowRect(4)/2);
+stimulusPieceRect = CenterRectOnPoint(stimulusPieceStruct.rect, cx,cy);
 
 % draw stimulus ontop of tableau 
 Screen('DrawTexture', window, stimulusPieceStruct.tex, [], stimulusPieceRect);
@@ -172,7 +190,7 @@ WaitSecs(expParams.rule.stimulusDuration);
 Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
 
 % draw fixation ontop of tableau 
-drawFixation(window, windowRect, expParams.fixation.color);
+drawFixation(window, expParams.screen.windowRect, expParams.fixation.color);
 
 % flip buffers once fixation duration ends. Replace stimulus w/ fixation 
 Screen('Flip', window);

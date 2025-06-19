@@ -22,6 +22,7 @@ try
     % Load textures
     tableaus = getTableaus(window, expParams);
     pieces   = getTetrino(expParams);
+    tableauRect = tableaus(1).rect;
     
     % Conditions and helper call
     conditions = {'fit_complete','fit_does_not_complete','does_not_fit','garbage'};
@@ -30,30 +31,17 @@ try
     % Prep results
     nTrials = numel(stimulusSequence);
 
-    % cut? 
-    % results = repmat(struct(block, '' ,...
-    % trial_in_block, '', ...
-    % trial_overall, '',...
-    % 'responseKey', '', ...
-    % 'rt', NaN, ...
-    % 'isCorrect', false, ...
-    % 'tableauPiece', '', ...
-    % 'tableauCondition', '', ...
-    % 'stimulusPiece', '', ...
-    % 'isMatch', false, ...
-    % 'fixationOnset', NaN, ...
-    % 'stimOnset', NaN, ...
-    % 'eegTrigger', NaN), ...
-    % nTrials, 1);
+window     = expParams.screen.window;
+% windowRect = expParams.screen.windowRect;
+cx = expParams.screen.center(1);
+cy = expParams.screen.center(2);
+w = expParams.screen.width;
+h = expParams.screen.height;
 
-screenW     = windowRect(3);
-screenH     = windowRect(4);
-tableauRect = tableaus(1).rect;
-
-positions.up    = CenterRectOnPoint(tableauRect, screenW/2,      screenH * 0.25);
-positions.down  = CenterRectOnPoint(tableauRect, screenW/2,      screenH * 0.75);
-positions.left  = CenterRectOnPoint(tableauRect, screenW * 0.25, screenH/2);
-positions.right = CenterRectOnPoint(tableauRect, screenW * 0.75, screenH/2);
+    positions.up    = CenterRectOnPoint(tableauRect, cx,      0.25 * h);
+    positions.down  = CenterRectOnPoint(tableauRect, cx,      0.75 * h);
+    positions.left  = CenterRectOnPoint(tableauRect, 0.25*w,  cy);
+    positions.right = CenterRectOnPoint(tableauRect, 0.75*w,  cy);
 
     % Tableau positions (from expParams)
     % positions = expParams.p4.positions;
@@ -81,7 +69,7 @@ positions.right = CenterRectOnPoint(tableauRect, screenW * 0.75, screenH/2);
                             strcmp({tableaus.condition}, cond));
             Screen('DrawTexture', window, T.tex, [], positions.(key));
         end
-        drawFixation(window, windowRect, expParams.fixation.color);
+        drawFixation(window, expParams.screen.windowRect, expParams.fixation.color);
        [~, fixationOnset]=  Screen('Flip', window);
         WaitSecs(expParams.rule.fixationDuration);
         
@@ -94,9 +82,11 @@ positions.right = CenterRectOnPoint(tableauRect, screenW * 0.75, screenH/2);
             Screen('DrawTexture', window, T.tex, [], positions.(key));
         end
         pieceTex  = pieces(strcmp({pieces.name}, trial.stimulusPieceName)).tex;
-       pieceRect = CenterRectOnPoint(...
-               pieces(strcmp({pieces.name}, trial.stimulusPieceName)).rect, ...
-               screenW/2, screenH/2);
+       
+    % OLD SCREEN PARAMS pieceRect = CenterRectOnPoint(pieces(strcmp({pieces.name}, trial.stimulusPieceName)).rect, screenW/2, screenH/2);
+    pieceRect = CenterRectOnPoint( pieces(strcmp({pieces.name}, trial.stimulusPieceName)).rect, cx, cy);
+
+
 
         Screen('DrawTexture', window, pieceTex, [], pieceRect);
         [~, stimOnset] = Screen('Flip', window);
@@ -153,7 +143,7 @@ positions.right = CenterRectOnPoint(tableauRect, screenW * 0.75, screenH/2);
                             strcmp({tableaus.condition}, cond));
             Screen('DrawTexture', window, T.tex, [], positions.(key));
         end
-        drawFixation(window, windowRect, expParams.fixation.color);
+        drawFixation(window, expParams.screen.windowRect, expParams.fixation.color);
         Screen('Flip', window);
         
         % 7. LOG RESULTS

@@ -25,14 +25,6 @@ function humanTetrisWrapper(subjID, demoMode)
     if nargin < 2
         demoMode = 1; % default to demoMode
     end
-
-    % initialize 
-    % window = [];
-    % windowRect = [];
-    % expParams = struct(); % init struct
-    % ioObj = [];         
-    % address = [];       
-    % eyetracker = [];    
   
     %{ 
 add a 'lazy' check to fix bug. 
@@ -120,10 +112,14 @@ This is to not clog up main experiment scripts, but also have consistent expPara
             fprintf('Recalibration complete.\n');
         end
         
-        % UNCOMMENT THE LINE BELOW TO ACTIVATE p5
         p5(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
         
-        % --- End Screen ---
+        %{ 
+p5: All games complete. Saving event data...
+Warning: Could not save demo log as .csv, possibly due to inconsistent struct fields. Error: Input structure must be a scalar structure, or a structure array
+with one column or one row. 
+        %}
+
         showEndScreen(window, expParams);
 
     catch ME

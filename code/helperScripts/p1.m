@@ -21,7 +21,7 @@ presentationPieceOrder = randi(nPieces, 1, expParams.p1.options.totalP1Trials);
 % returns random list of numbers from 1 to 7, for the number of totalP1Trials input 
 
 if length(presentationPieceOrder) ~= expParams.p1.options.totalP1Trials
-    % fatal experiment error, cannot continue 
+    % fatal experiment error, cgit aannot continue 
     error('ERROR: pieceOrder (%d) DNE expected trial count (%d)', length(presentationPieceOrder), expParams.p1.options.totalP1Trials);
 end
 
