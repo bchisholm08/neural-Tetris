@@ -25,10 +25,7 @@ if length(presentationPieceOrder) ~= expParams.p1.options.totalP1Trials
     error('ERROR: pieceOrder (%d) DNE expected trial count (%d)', length(presentationPieceOrder), expParams.p1.options.totalP1Trials);
 end
 
- % should really have a break at halfway...lets subjects rest their eyes
- % etc. 
-
-%% block loop
+%% block loop       should really have a break at AT LEAST halfway thru 490 trials...let subjects rest their eyes etc. 
 for block = 1:expParams.p1.options.blocks
 
 % init block struct 
@@ -43,8 +40,9 @@ for t = 1:expParams.p1.options.trialsPerBlock
     pieceName = pieces(pieceID).name; % More direct way to get piece name
     eegTrigger = getTrig(pieceName, 'alone'); 
 
-    % keep ITI to local script for rng 
-    itiDuration = 0.7 + rand * 0.4; % Random ITI duration (700-1100ms)
+    % pull ITI into script 
+    iti = expParams.p1.options.itiFcn();
+    itiDuration = iti; 
 
     % --- 1. Fixation Period ---
     if ~demoMode 
@@ -52,12 +50,12 @@ for t = 1:expParams.p1.options.trialsPerBlock
     end
     
     % Prepare the fixation cross frame in the back buffer
-    drawFixation(window, windowRect, expParams.fixation.color); %
+    drawFixation(window, windowRect, expParams); %
     % Flip to show the fixation cross and get its onset time
     fixationOnset = Screen('Flip', window);
     
     % Wait for the duration of the fixation period
-    WaitSecs(expParams.rule.fixationDuration);
+    WaitSecs(expParams.p1.options.fixationDuration);
 
     % --- 2. Stimulus Presentation ---
     % Prepare the piece frame in the back buffer
@@ -75,11 +73,11 @@ for t = 1:expParams.p1.options.trialsPerBlock
     fprintf('B#%d/T#%d | pID = %d (%s) | eegTrig = %d\n', block, t, pieceID, pieceName, eegTrigger);
     
     % piece is on screen. pause for length of presentation duration.
-    WaitSecs(expParams.rule.stimulusDuration);
+    WaitSecs(expParams.p1.options.stimulusDuration);
 
     % --- 3. Inter-Trial Interval (ITI) ---
     % Prepare the ITI frame (which is just the fixation cross again)
-    drawFixation(window, windowRect, expParams.fixation.color); %
+    drawFixation(window, windowRect, expParams); %
     % Flip at the exact moment the stimulus duration ends. This swaps the
     % piece for the fixation cross instantly.
     itiOnset = Screen('Flip', window);
@@ -99,6 +97,7 @@ for t = 1:expParams.p1.options.trialsPerBlock
     data(trialIndex).pieceName = pieceName;
     data(trialIndex).fixationOnset = fixationOnset;
     data(trialIndex).stimOnset = stimOnset;
+    data(trialIndex).itiOnset = itiOnset; 
     data(trialIndex).eegTrigger = eegTrigger;
     data(trialIndex).trialDuration = stimOnset - fixationOnset;
     % We are now doing block-wise pupil saving, so we don't save gazeData here.
@@ -108,7 +107,7 @@ for t = 1:expParams.p1.options.trialsPerBlock
         blockGazeData = [blockGazeData; gazeData];
     end
 
-    % during this time I think we should check for pause 
+    % during this time check for pause 
     handlePause(window, expParams.keys);
 
     % The fixation cross is now on screen. Wait for the rest of the ITI.
@@ -123,9 +122,7 @@ end % --- End of trial loop ---
             save(pupilFileName, 'blockGazeData', '-v7.3');
             fprintf('p1: Saved pupillometry data for block %d.\n', block);
         end
-        
-        % give break REMOVED 6/9/25. P1 is too short to waste time giving a break 
-        
+
         % take5Brubeck(window, expParams);
     
     end % loop used to be for saving WHILE a break is given, now is just for saving with no break 
@@ -138,11 +135,7 @@ if ~demoMode
     fprintf('p1: Saved pupillometry data for final block %d.\n', block);
 end
 
-% %% Save behavioral data @ end
 % expParams.pieceOrder = presentationPieceOrder;
-
-% below may override original 6.13.25 REMOVED NOT NEEDED
-% expParams.timestamp = datestr(now, 'yyyymmdd_HHMMSS');
 
 % not sure if this will be useful or not--too simple to NOT include 
 expParams.p1.options.sectionDoneFlag = 1;
@@ -159,4 +152,4 @@ catch ME % get MException object
     
     rethrow(ME); % rethrow error for wrapper 
 end % try exp end
-end % p1() end
+end % p1 end

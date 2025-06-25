@@ -13,7 +13,7 @@ function showEndScreen(window, expParams)
     Screen('TextSize', window, 32);
     Screen('TextFont', window, 'Arial'); 
 
-    endText = ('Experiment complete! \n\n Thank you very much for your time and participation!! \n\n Press SPACE to exit when ready.');
+    endText = ('Experiment complete! \n\n Thank you for your time and participation! \n\n Press SPACE to exit....');
 
     Screen('FillRect', window, expParams.colors.background); 
     DrawFormattedText(window, endText, 'center', 'center', expParams.colors.white);

@@ -19,8 +19,6 @@ try
 
     fprintf('p5: Initializing Tetris game environment...\n');
 
-
-    
     % Display instructions for Part 5
     p5instruct(window, expParams); %
 
@@ -47,7 +45,8 @@ try
                    [184 185 186 194],[194 195 185 186],[184 195 185 196], [185 186 195 196]};
 
     S.pointsVector = [100 300 500 800]; % reg tetris points for 1, 2, 3, or 4 lines cleared 
-    S.levelFactor = .825;  % speed factor per level
+    S.levelFactor = .625;  % speed factor per level
+    
     S.linesForLevelUp = 5; % change level every 5 lines
 
     % init logs 
@@ -132,7 +131,7 @@ try
         % 6.11.25 FIXME add in "wait for the next game to begin" while under the
         % game time ceiling. Once < a certain threshold, just give "wait
         % for game to end" message 
-        DrawFormattedText(window, sprintf('Game Over!\n\nFinal Score: %d\n\nWait to proceed.....', S.currentScore), 'center', 'center', [255 0 0]);
+        DrawFormattedText(window, sprintf('Game Over!\n\nFinal Score: %d\n\nPlease wait.....', S.currentScore), 'center', 'center', [255 0 0]);
         Screen('Flip', window);
         WaitSecs(4); 
         

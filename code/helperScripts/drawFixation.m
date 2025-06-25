@@ -3,20 +3,21 @@
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
 % Date: 6.9.2025
 %
-% Description: Draws a fixation cross for stimuli 
+% Description: Draws a fixation cross for stimuli. Parameters for fixation
+% size are in expParams structure 
 %                
 %-------------------------------------------------------
-function drawFixation(window, windowRect, color)
+function drawFixation(window, windowRect, expParams)
 
-    % both in px; changes size of fixation cross (move to expParams) 
-    length = 10;
-    thickness = 4; 
+    length = expParams.fixation.size;
+    thickness = expParams.fixation.lineWidth; 
+    color = expParams.fixation.color; 
 
     [xCenter, yCenter] = RectCenter(windowRect);
-    % horz line (length: 20px, thickness: 8px)
+
     fixRect = [xCenter-length, yCenter-thickness, xCenter+length, yCenter+thickness];
     Screen('FillRect', window, color, fixRect);
-    % vert line (length: 20px, thickness: 8px)
+
     fixRect = [xCenter-thickness, yCenter-length, xCenter+thickness, yCenter+length];
     Screen('FillRect', window, color, fixRect);
 end

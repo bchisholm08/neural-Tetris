@@ -1,4 +1,4 @@
-# Human Tetris Experiment; Jean-Paul Noel Neuroscience Lab 
+# **Jean-Paul Noel Neuroscience Lab Human Tetris Experiment**
 
 A neuroscience experiment exploring how neural reprentations of visual objects may vary depending on the context that surrounds an object, and possible actions or rewards an object encodes. 
 
@@ -14,29 +14,50 @@ A neuroscience experiment exploring how neural reprentations of visual objects m
 - [License](#license)
 
 ## Overview
-This repository contains the code for a five-part experimental paradigm that integrates:
+This repository contains the code for a four-part experimental paradigm that integrates:
 - **EEG recording:** via BioSemi parallel port triggers.
-- **Eye-tracking:** using Tobii SDK and pupillometry.
+- **Eye-tracking:** using Tobii SDK.
 - **Task presentation:** built with Psychtoolbox.
+
+An overall theme of this experiment is that is increases in complexity throughout. In scripts and functions (LINK HERE) see `p1.m`, `p2.m`, `p4.m` and `p5.m` for more detail on each section.  
 
 ## Repository Structure
 ```  
 /  
 ├── code/  
-│   ├── p1.m             # Piece presentation section :contentReference[oaicite:0]{index=0}&#8203;:contentReference[oaicite:1]{index=1}  
-│   ├── p2.m             # Tableau context section :contentReference[oaicite:2]{index=2}&#8203;:contentReference[oaicite:3]{index=3}  
-│   ├── p4.m             # 4-AFC matching section :contentReference[oaicite:4]{index=4}&#8203;:contentReference[oaicite:5]{index=5}  
+│   ├── humanTetrisWrapper.m # handles entire experiment
 │   ├── helperScripts/   # Utility functions  
-│   └── initExperiment.m # Experiment initialization :contentReference[oaicite:6]{index=6}&#8203;:contentReference[oaicite:7]{index=7}  
+│   └── initExperiment.m # Experiment initialization 
 ├── data/                # Generated data folders per subject  
 └── README.md            # This file  
 ```
 
 ## Requirements
 - **MATLAB R2023a** or later  
-- **Psychtoolbox-3** installed  
+- **Psychtoolbox-3.0.19** installed  
+  - PTB requires **GStreamer 1.22.5 (or later)** to be installed 
 - **Tobii Pro SDK** on the MATLAB path  
 - **BioSemi parallel port** hardware (if `demoMode` is off)  
+
+## News 📰
+
+[//]: # (To make a new entry simply paste :   <tr> )
+[//]: # (<td> [] </td>)
+[//]: # (    <td> [] </td>)
+[//]: # (</tr>)
+
+<table>
+  <tr>
+    <th>Date</th>
+    <th>What Changed</th>
+  </tr>
+  <tr>
+    <td> 6/20/2025 </td>
+    <td> Behavioral portion of the experiment is complete. Minor fixes are needed to prepare for data collection. </td>
+  </tr>
+
+</table>
+
 
 ## Installation
 1. Clone the repository:  
@@ -49,18 +70,28 @@ This repository contains the code for a five-part experimental paradigm that int
    ```
 
 ## Usage
-Run each section with:  
+Each participant is run with one single function call to a wrapper. This will run all experiment sections, give instructions, save data, and close everything at the end. 
+
+The experimenter should only *have* to enter the room if the participant requests it. 
 ```matlab
-subjID = 'P01';
-demoMode = 0; % Set to 1 to bypass EEG/eye‑tracker
-p1(subjID, demoMode);
-p2(subjID, demoMode);
-p4(subjID, demoMode);
+subjID = 's01'; 
+demoMode = 0; 
+humanTetrisWrapper(subjID, demoMode);
+
 ```  
-Adjust `subjID` for each participant. Ensure you call `initExperiment` within each script to handle synchronization and calibration.
+
+
+ ***NOTE:*** Wrapper function **defaults** to demoMode == 1. This will  bypass EEG/eye‑tracker data collection and run purely the behavioral portion of the experiment. This will still save `.csv` data files. 
+ 
+ Data from P1 and P2 is not anything worth analyzing, however P4 will provide interesting response data.  
 
 ## Scripts & Functions
 ## Experiment Function Reference
+
+### tempFunctionName
+**Inputs:**` `
+**Outputs**` ` 
+**Description** ` ` 
 
 ### humanTetrisWrapper
 **Inputs:** `subjID`  
@@ -173,11 +204,24 @@ data/<subjID>/
 ├── eyeData/  
 ├── behavioralData/  
 ├── misc/  
-└── pX/    % section-specific .mat files  
-```
+└── 
+
+
+
+
+
+
 
 ## Contributing
 Please open issues or pull requests for enhancements, bug fixes, or documentation improvements.
+
+
+
+Don't hesitate to reach out! I can be contacted at two different emails, 
+<a href="mailto:chish071@umn.edu" target="_blank">chish071@umn.edu</a>
+ or <a href="mailto:bmc@brady-c.cc" target="_blank">bmc@brady-c.cc</a>. 
+
+As of 6/20/2025 this experiment is near deployment in our lab. As we collect data, I will update this repository with preprocessing code we use for analysis. 
 
 ## License
 This project is licensed under the MIT License. See `LICENSE` for details.

@@ -34,10 +34,8 @@
 %               struct(fields) 
 %-------------------------------------------------------
 function [window, windowRect, expParams, ioObj, address, eyetracker] = initExperiment(subjID, demoMode)
-% Initializes PTB, EEG (if enabled), Tobii tracker (if enabled), and experiment parameters
-% Designed to be called once by a overall wrapper script.
 
-% begin w/ empty output args
+% begin w/ empty output
 window = [];
 windowRect = [];
 ioObj = [];
@@ -45,17 +43,57 @@ address = [];
 eyetracker = [];
 
 expParams = struct(); % Initialize main params structure
-% store info
+% store some info
 expParams.subjID = subjID;
 expParams.demoMode = demoMode;
+     
+% set ITI here
+itiFcn = @() 1.0 + rand * 0.2;  % ITI between 1000–1200 ms
+expParams.p1.options.itiFcn = itiFcn;
+expParams.p2.options.itiFcn = itiFcn;
+expParams.p4.options.itiFcn = itiFcn;
+% now can call code chunk below to get ITI based on function handle instead
+% of having to type it in each PX() script... 
+%{
+itiDuration = expParams.p<X>.options.itiFcn();  % Get ITI
+WaitSecs(itiDuration);            % Wait duration
+%}
 
-% expParams.initExperimentTimestamp = datestr(now, 'yyyymmdd_HHMMSS'); % timestamp will be useful for P5.
+% expParams.initExperimentTimestamp = datestr(now, 'yyyymmdd_HHMMSS'); %
+% timestamp will be useful for P5... hopefully 
 expParams.rule.initExperiment_expMasterBeginTime = datetime('now');
 expParams.rule.initExperiment_expMasterBeginTime.Format = 'HH:mm:ss_M/d/yy';
 
-expParams.rule.initExperiment_expMasterEndTime = []; % initialize as empty, store once finished
+expParams.rule.initExperiment_expMasterEndTime = []; % initialize as empty, store once finished. add to clean up of p5 
 
-expParams.rule.maxExperimentTime = 180; % in minutes. Be wary of conversions and formatting throughout the code...ultimately this will be used to cap P5
+expParams.rule.maxExperimentTime = 180; % in minutes. Be wary of conversions and formatting throughout the code...ultimately this will be used to cap P5 play time 
+
+%% exp color settings
+expParams.colors.white = [255 255 255];
+expParams.colors.black = [0 0 0];
+expParams.colors.gray  = [127 127 127];
+expParams.colors.red   = [255 0 0];
+expParams.colors.green = [0 255 0];
+expParams.colors.piece = [127 127 127]; % exp gray
+expParams.colors.background = [0 0 0];  % black background
+
+%% exp fixation params
+expParams.fixation.size = 10; % in pixels for cross arms
+expParams.fixation.lineWidth = 2; % in pixels
+expParams.fixation.color = expParams.colors.white;
+expParams.fixation.type = 'cross'; % 'dot' / 'cross'
+
+% set up keyboard
+KbName('UnifyKeyNames');
+expParams.keys.left    = KbName('LeftArrow');
+expParams.keys.right   = KbName('RightArrow');
+expParams.keys.down    = KbName('DownArrow');
+expParams.keys.up      = KbName('UpArrow');
+expParams.keys.space   = KbName('space');
+expParams.keys.enter   = KbName('Return');
+expParams.keys.escape  = KbName('ESCAPE');
+expParams.keys.p       = KbName('p'); % pause
+expParams.keys.r       = KbName('r'); % experiment keycode
 
 %% paths
 
@@ -79,29 +117,25 @@ if isfolder('P:\scripts') || isfolder('P:\afc\scripts')
 end
 
 % Add the helperScripts path FIRST so getProjectPath can be found
-try
+try % try to get initial paths 
     % This initial path detection is a one-time necessary step.
     tempPath = fileparts(which(mfilename('fullpath')));
-
     % temp path runs as: Z:\13-humanTetris\code\helperScripts
     addpath(tempPath);
 catch
-    error('initExperiment:PathError', 'Could not find the helperScripts folder. Please run from the correct directory.');
+    error('initExperiment:PathError', '!!!!!!!!!!!!\nCould not find helperScripts. \nPlease run from correct directory\n!!!!!!!!!!!!');
 end
 
 % --- Use pathsAndPlaces() to define all critical folder locations ---
 mainExperimentHomeDir   = pathsAndPlaces(0); % 0 = project root
 codeDir                 = pathsAndPlaces(1); % 1 = code folder
 baseDataDir             = pathsAndPlaces(2); % 2 = data folder
-toolsDir                = pathsAndPlaces(3); % 3 = tools folder
+% toolsDir                = pathsAndPlaces(3); % 3 = tools folder
 
 % Define paths to tools and data relative to the main experiment folder
 tobiiSDKPath = fullfile(mainExperimentHomeDir, 'tools', 'tobiiSDK');
 
-% line below had an extra
-% helperScriptsPath = fullfile(mainExperimentHomeDir, 'helperScripts');
-
-% fix path?
+% fix this path?
 % baseDataDir = fullfile(mainExperimentHomeDir, 'data');
 eegHelperPath = fullfile(mainExperimentHomeDir,'tools', 'matlab_port_trigger');
 tittaPath = fullfile(mainExperimentHomeDir, 'tools','tittaMaster');
@@ -119,16 +153,16 @@ disp(['Main experiment folder set as: ', mainExperimentHomeDir]);
 disp(['Added to path (helperScripts): ', codeDir]);
 disp(['Base data directory set to: ', baseDataDir]);
 disp(['Added to path (Tobii SDK): ', tobiiSDKPath]);
-disp(['Added to path (Titta): ', tittaPath]);
+% disp(['Added to path (Titta): ', tittaPath]);
 disp(['Added to path (EEG Helper): ', eegHelperPath]);
 
-if demoMode % extra demo mode file pathway check, so many past errors / problems
+if demoMode % extra demo mode file pathway check, so many past errors / problems with creating incorrect directories 
     while true
-        % Ask for user confirmation
+        % user confirmation
         prompt = 'Proceed with displayed filepathways? (Y/N): ';
         response = input(prompt, 's');
 
-        % Check the response
+        % Check response
         if strcmpi(response, 'Y') || strcmpi(response, 'Yes')
             % If 'Y' or 'Yes', break the loop and continue with the script
             fprintf('Paths confirmed. Continuing...\n');
@@ -141,9 +175,9 @@ if demoMode % extra demo mode file pathway check, so many past errors / problems
             fprintf('Invalid input. Please enter Y or N.\n');
         end
     end
-end
+end % file path check 
 
-%% build/assign directories to exp params
+%% assign & build directories to exp params
 expParams.baseDataDir = baseDataDir;
 expParams.subjPaths.subjRootDir = fullfile(expParams.baseDataDir, subjID);
 expParams.subjPaths.eyeDir = fullfile(expParams.subjPaths.subjRootDir, 'eyeData');
@@ -151,33 +185,43 @@ expParams.subjPaths.behavDir = fullfile(expParams.subjPaths.subjRootDir, 'behavi
 expParams.subjPaths.miscDir = fullfile(expParams.subjPaths.subjRootDir, 'misc');
 
 % check existence of above directories and create if not found
-if ~exist(expParams.subjPaths.subjRootDir, 'dir'), mkdir(expParams.subjPaths.subjRootDir); end
-if ~exist(expParams.subjPaths.eyeDir, 'dir'), mkdir(expParams.subjPaths.eyeDir); end
-if ~exist(expParams.subjPaths.behavDir, 'dir'), mkdir(expParams.subjPaths.behavDir); end
-if ~exist(expParams.subjPaths.miscDir, 'dir'), mkdir(expParams.subjPaths.miscDir); end
-
+if ~exist(expParams.subjPaths.subjRootDir, 'dir')
+    mkdir(expParams.subjPaths.subjRootDir); 
+end
+if ~exist(expParams.subjPaths.eyeDir, 'dir')
+    mkdir(expParams.subjPaths.eyeDir);
+end
+if ~exist(expParams.subjPaths.behavDir, 'dir')
+    mkdir(expParams.subjPaths.behavDir);
+end
+if ~exist(expParams.subjPaths.miscDir, 'dir')
+    mkdir(expParams.subjPaths.miscDir)
+end
 if ~exist(expParams.subjPaths.subjRootDir, 'dir')
     error('Failed to create subject''s root directory @: %s', expParams.subjPaths.subjRootDir);
 end
 
-% REDUNDANT fprintf('Paths and directories set up successfully.\n');
 
-%% exp color settings
-expParams.colors.white = [255 255 255];
-expParams.colors.black = [0 0 0];
-expParams.colors.gray  = [127 127 127];
-expParams.colors.red   = [255 0 0];
-expParams.colors.green = [0 255 0];
-expParams.colors.piece = [127 127 127]; % exp gray
-expParams.colors.background = [0 0 0];  % black background
 
-%% init ptb
-PsychDefaultSetup(2); %FIXME this depends based on demo or REAL DEAL data mode
+% flags
+expParams.p1.options.sectionDoneFlag = 0;
+expParams.p2.options.sectionDoneFlag = 0;
+expParams.p4.options.sectionDoneFlag = 0;
+
+
+if demoMode
+    Screen('Preference', 'SkipSyncTests', 2);  % loose 
+else
+    Screen('Preference', 'SkipSyncTests', 0);  % strict
+end
+
+%% initialize PTB screen and save info to expParams
+PsychDefaultSetup(2); % general PTB set up, no sync test 
+
 screens = Screen('Screens');
 screenNumber = max(screens);
-
-%% initialize the screen and save info to our params
 [window, windowRect] = PsychImaging('OpenWindow', screenNumber, expParams.colors.background);
+% save these into expParams below
 [screenXpixels, screenYpixels] = Screen('WindowSize', window);
 [xCenter, yCenter] = RectCenter(windowRect);
 
@@ -188,7 +232,7 @@ topPriorityLevel = MaxPriority(window);
 Priority(topPriorityLevel);
 
 expParams.screen.window = window;
-expParams.screen.windowRect = windowRect; % save windowRect
+expParams.screen.windowRect = windowRect; 
 expParams.screen.width = screenXpixels;
 expParams.screen.height = screenYpixels;
 expParams.screen.center = [xCenter, yCenter];
@@ -197,69 +241,92 @@ expParams.screen.ifi = Screen('GetFlipInterval', expParams.screen.window); % sav
 
 fprintf('Psychtoolbox initialized successfully.\n');
 
-%% overall experiment timings
-% in MS
-expParams.rule.fixationDuration = 0.5;
-expParams.rule.stimulusDuration = 0.1;
-
-%{
-moved from original p1 script, pass with expParams 
-        fixationDuration = 0.5; % Duration of initial fixation
-        stimulusDuration = 0.1; % How long the piece is visible (100ms)
-        itiDuration = 0.7 + rand * 0.4; % Random ITI duration (700-1100ms)
-keep ITI to each respective script for rng 
-%}
-
-% at some point the duplicate below existed, obviously I want to use the
-% expParams.rule above. noted 6/10/2025
-% expParams.fixation.durationSecs = 0.5; % fixation duration
-
-%% demoMode vs 'real' mode settings
+%% demoMode vs experiment 'real' data collection settings 
+% from here below we have a big 'if/else/end' that first tries to
+% initialize the experiment with demoMode settings. If demoMode is false,
+% we'll go on to the 'real' set up section
 if demoMode
 
-    % loose sync test 
-    Screen('Preference', 'SkipSyncTests', 2);
-
-    % timings 
+    %% demoMode timings 
     expParams.rule.minBlockBreakTime = 0;
     expParams.rule.maxBlockBreakTime = 300;
     expParams.rule.minInterExpBreakTime = 0;
     expParams.rule.maxInterExpBreakTime = 300;
 
+    % timings below in MS
+    % p1 
+    expParams.p1.options.stimulusDuration = 0.1; 
+    expParams.p1.options.fixationDuration = 0.5; 
+    % p2 
+    expParams.p2.options.stimulusDuration = 0.1;
+    expParams.p2.options.fixationDuration = 0.5; 
+    % p 4 
+    expParams.p4.options.stimulusDuration = 0.1;
+    expParams.p4.options.fixationDuration = 0.5; 
+    expParams.p4.options.respTimeout = 1.5; % seconds, how long the subj has to respond. NOTE: Look closely @ how iti & flip are calculated, and if this 'remainder' or 'idle
+    %  time we give is actually how long we think it is 
+
+
+    
+    
+
+%======================================================
+%realExp trials & block #'s.  
+    % expParams.p1.options.blocks = 7;
+    % expParams.p1.options.trialsPerBlock = 70;
+    % expParams.p1.options.totalP1Trials = expParams.p1.options.blocks * expParams.p1.options.trialsPerBlock;
+    % % p1, 490 total trials
+    % 
+    % expParams.p2.options.blocks = 7;
+    % expParams.p2.options.trialsPerBlock = 210; %  MUST BE A MULTIPLE OF 3 FOR EXP TO WORK (fit / partial fit / does not fit)
+    % expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
+    % % p2, 1470 total trials
+    % 
+    % expParams.p4.options.blocks = 7;
+    % expParams.p4.options.trialsPerBlock = 50;
+    % expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
+    % p4, 350 total trials
+    %======================================================
+
     % demoMode blocks / trials
     expParams.p1.options.blocks = 4;
     expParams.p1.options.trialsPerBlock = 5;
     expParams.p1.options.totalP1Trials = expParams.p1.options.blocks * expParams.p1.options.trialsPerBlock;
-    expParams.p1.options.sectionDoneFlag = 0; % initialize this flag as zero, and change later!
 
     expParams.p2.options.blocks = 7;
     expParams.p2.options.trialsPerBlock = 6; %  MUST BE A MULTIPLE OF 6 FOR EXP TO WORK
     expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
-    expParams.p2.options.sectionDoneFlag = 0;
 
-    % expParams.p3.options.blocks = ;
-    % expParams.p3.options.trialsPerBlock = ;
-    % expParams.p3.options.totalP3Trials = ;
-
-    expParams.p4.options.respTimeout = 1.75; % seconds, how long the subj has to respond
     expParams.p4.options.blocks = 7;
-    expParams.p4.options.trialsPerBlock = 6;
+    expParams.p4.options.trialsPerBlock = 18; % get more presentation in demoMode
     expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
-    expParams.p4.options.sectionDoneFlag = 0;
 
-    expParams.p5.options.gamesAllowed = 2;
+    expParams.p5.options.gamesAllowed = 2; % this will change to time allowed 
    
-else % REAL EXPERIMENT MODE
+else 
+    %% REAL EXPERIMENT MODE
     %% timings 
     expParams.rule.minBlockBreakTime = 30;
     expParams.rule.maxBlockBreakTime = 120;
     expParams.rule.minInterExpBreakTime = 30;
     expParams.rule.maxInterExpBreakTime = 180;
 
-    fprintf('Running REAL EXPERIMENT MODE.\n');
-    Screen('Preference', 'SkipSyncTests', 0); % Strict sync tests
+    expParams.rule.minBlockBreakTime = 0;
+    expParams.rule.maxBlockBreakTime = 300;
+    expParams.rule.minInterExpBreakTime = 0;
+    expParams.rule.maxInterExpBreakTime = 300;
+    % below all in MS
+    % p1 
+    expParams.p1.options.stimulusDuration = 0.1; 
+    expParams.p1.options.fixationDuration = 0.5; 
+    % p2 
+    expParams.p2.options.stimulusDuration = 0.1;
+    expParams.p2.options.fixationDuration = 0.5; 
+    % p4 
+    expParams.p4.options.fixationDuration = 0.5; 
+    expParams.p4.options.respTimeout = 1.75; % seconds, how long the subj has to respond before timeout 
 
-    %% set up tobii
+    %% init experiment tobii
     try
         fprintf('Initializing Tobii Eye Tracker...\n');
         Tobii = EyeTrackingOperations();
@@ -281,9 +348,9 @@ else % REAL EXPERIMENT MODE
             % including a gaze fixation or something to help subjects
             % throughout the experiment...?
 
-            expParams.Tobii_info.screen_pixels = [screenXpixels, screenYpixels];
+            expParams.Tobii_info.screen_pixels = [expParams.screen.width, expParams.screen.height];
             fprintf('Beginning Initial Tobii Calibration...\n');
-            % this save is incorrect--should go to subject database
+            % this save below is incorrect--should go to subject database
             expParams.Tobii_info.calResult = calibrateTobii(window, windowRect, eyetracker, expParams); % Pass expParams
             % if calibrationData is empty or something funkywunky happens
             % we need to add a CHECK here for that. 
@@ -294,7 +361,7 @@ else % REAL EXPERIMENT MODE
         error('Tobii Eye Tracker initialization failed: %s', tobiiME.message);
     end
 
-    %% initialize EEG trigger (io64 obj)
+    %% init experiment EEG
     try
         fprintf('Initializing EEG trigger system (io64)...\n');
         ioObj = io64;
@@ -312,27 +379,20 @@ else % REAL EXPERIMENT MODE
         address = [];
     end
 
-    %% Real experiment parameters for sections
+    %% real exp blocks and trials 
     expParams.p1.options.blocks = 7;
     expParams.p1.options.trialsPerBlock = 70;
     expParams.p1.options.totalP1Trials = expParams.p1.options.blocks * expParams.p1.options.trialsPerBlock;
-    expParams.p1.options.sectionDoneFlag = 0;
     % p1, 490 total trials
 
     expParams.p2.options.blocks = 7;
-    expParams.p2.options.trialsPerBlock = 210; %  MUST BE A MULTIPLE OF 6 FOR EXP TO WORK (fit / partial fit / does not fit)
+    expParams.p2.options.trialsPerBlock = 210; %  MUST BE A MULTIPLE OF 3 FOR EXP TO WORK (fit / partial fit / does not fit)
     expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
-    expParams.p2.options.sectionDoneFlag = 0;
     % p2, 1470 total trials
-
-    % expParams.p3.options.blocks = ;
-    % expParams.p3.options.trialsPerBlock = ;
-    % expParams.p3.options.totalP3Trials = expParams.p3.options.blocks * expParams.p3.options.trialsPerBlock;
 
     expParams.p4.options.blocks = 7;
     expParams.p4.options.trialsPerBlock = 50;
     expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
-    expParams.p4.options.sectionDoneFlag = 0;
     % p4, 350 total trials
 
     % this will be changed to TIME allowed. Once completing the other
@@ -348,25 +408,7 @@ else % REAL EXPERIMENT MODE
     % personally think it would be alright to leave the timer in the upper
     % corner of the screen--will have to ask JP
 
-end % end demoMode block handling
-
-% Fixation params
-expParams.fixation.size = 10; % pixels for cross arms
-expParams.fixation.lineWidth = 2; % in pixels
-expParams.fixation.color = expParams.colors.white;
-expParams.fixation.type = 'cross'; % 'dot' / 'cross'
-
-% set up keyboard
-KbName('UnifyKeyNames');
-expParams.keys.left    = KbName('LeftArrow');
-expParams.keys.right   = KbName('RightArrow');
-expParams.keys.down    = KbName('DownArrow');
-expParams.keys.up      = KbName('UpArrow');
-expParams.keys.space   = KbName('space');
-expParams.keys.enter   = KbName('Return');
-expParams.keys.escape  = KbName('ESCAPE');
-expParams.keys.p       = KbName('p'); % pause
-expParams.keys.r       = KbName('r'); % experiment keycode
+end % end demoMode/realMode block handling
 
 % just a silly string
 if expParams.demoMode
@@ -374,8 +416,7 @@ if expParams.demoMode
 else
     sillyStringBoi = "REAL DEAL DATA COLLECTION";
 end
-
 fprintf(['=============================\n' ...
     'initExperiment successfully initialized experiment in %s\n' ...
-    '=============================\n'], sillyStringBoi);
+    '=============================\n'], sillyStringBoi); % this is stupid but I'm keeping it
 end

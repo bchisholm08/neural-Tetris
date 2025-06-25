@@ -69,9 +69,9 @@ h = expParams.screen.height;
                             strcmp({tableaus.condition}, cond));
             Screen('DrawTexture', window, T.tex, [], positions.(key));
         end
-        drawFixation(window, expParams.screen.windowRect, expParams.fixation.color);
+        drawFixation(window, expParams.screen.windowRect, expParams);
        [~, fixationOnset]=  Screen('Flip', window);
-        WaitSecs(expParams.rule.fixationDuration);
+        WaitSecs(expParams.p4.options.fixationDuration);
         
         % 2. PIECE PRESENTATION
         for f = 1:numel(fields)
@@ -143,7 +143,7 @@ h = expParams.screen.height;
                             strcmp({tableaus.condition}, cond));
             Screen('DrawTexture', window, T.tex, [], positions.(key));
         end
-        drawFixation(window, expParams.screen.windowRect, expParams.fixation.color);
+        drawFixation(window, expParams.screen.windowRect, expParams);
         Screen('Flip', window);
         
         % 7. LOG RESULTS
@@ -174,7 +174,7 @@ results(i).score = score;
     end
     
     expParams.p4.stimulusSequence        = stimulusSequence;
-    expParams.p2.options.sectionDoneFlag = 1;
+    expParams.p4.options.sectionDoneFlag = 1;
     timestamp = datestr(now, 'yyyymmdd_HHMM');
     saveDat(sprintf('p4_%s', timestamp), subjID, results, expParams, demoMode);
 catch ME

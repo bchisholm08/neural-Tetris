@@ -12,53 +12,34 @@
 % called within each Px() script. This wrapper also completes a calibration
 % before P4 (4-AFC section) and the final section, P5 (natural tetris
 % play). This is all automatically handled by the script. The script also
-% helps clean up errors/crashes in a 'graceful' way
+% helps clean up errors/crashes in a 'graceful' way 
 %                            
 %-------------------------------------------------------
 function humanTetrisWrapper(subjID, demoMode)
-
     % get user inputs, defaults for demoMode 
     if nargin < 1
         subjID = input('Enter a subjID (e.g. ''P01''): ', 's');
         subjID = strtrim(subjID); % Remove leading/trailing whitespace
     end
     if nargin < 2
-        demoMode = 1; % default to demoMode
-    end
-  
-    %{ 
-add a 'lazy' check to fix bug. 
+        demoMode = 1; % default to demoMode if no input 
+    end 
 
-if not found on path automatically add or something of the sort
-
-initExperiment is not found in the current folder or on the MATLAB path, but exists in:
-    Z:\13-humanTetris\code\helperScripts
-
-    %}  
-
-    %% main exp sections block 
+    % try to prevent some path errors  
     addpath('Z:\13-humanTetris\code');
     addpath("Z:\13-humanTetris\code\helperScripts");
+
+    %% main exp sections block
     try
-
-        fprintf('Initializing experiment environment...\n');
-%{
-calling initExperiment below does a few useful things. 
-
-Firstly, it will handle sync testing and initialize PTB.
-After this, there are a handful of options for the `expParams` structure that is passed around.
-This is to not clog up main experiment scripts, but also have consistent expParams passed between sections. 
-%}
-
         %% call initExperiment
         [window, windowRect, expParams, ioObj, address, eyetracker] = initExperiment(subjID, demoMode);
-        %% perform sanity check on initExperiment return 
+        % if init is successful, will print to window 
+
+        % perform sanity check on initExp struct returned 
         if isempty(window) || ~isstruct(expParams) || isempty(fieldnames(expParams))
             error('humanTetrisWrapper:InitializationFailed', 'initExperiment did not return valid window or expParams. Aborting.');
         end
-        fprintf('Initialization complete. Beginning experiment.\n\n');
-
-        %% run exp. sections 
+        %% run exp. sections %% 
         % p1,  piece presentation 
         p1(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
         
@@ -66,21 +47,23 @@ This is to not clog up main experiment scripts, but also have consistent expPara
         betweenSectionBreakScreen(window, expParams);
 
         % p2, pieces in context / tableaus 
-        p2(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
+        p2(subjID, demoMode, expParams, ioObj, address, eyetracker);
         
         % break 2
         betweenSectionBreakScreen(window, expParams);
 
-        % p3, 4 afc 
-        % --- Recalibration before Part 4 ---
+        % recalibrate before p4
+        % FIXME this can probably be accomplished in a more graceful way,
+        % like maybe WITHIN THE P4 SCRIPT ITSELF WITH THE CUSTOM CALIBRATION FUNCTION I WROTE 
+
         if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
             fprintf('Recalibrating eye tracker before 4-AFC...\n');
             DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
             Screen('Flip', window);
             KbName('UnifyKeyNames');
             spaceKey = KbName('SPACE');
-            KbWait(-1, 2); % Wait for key release before proceeding
-            while true % Wait for space key
+            KbWait(-1, 2); % Wait for key release before proceeding. why not just wait(.5)  ? 
+            while true % wait for space
                 [~, ~, keyCode] = KbCheck;
                 if keyCode(spaceKey)
                     break;
@@ -90,11 +73,12 @@ This is to not clog up main experiment scripts, but also have consistent expPara
             fprintf('Recalibration complete.\n');
         end
         
+        % 4afc 
         p4(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
         
         % break 3
         betweenSectionBreakScreen(window, expParams);
-
+         % FIXME ''
         if ~demoMode && ~isempty(eyetracker) % Check eyetracker exists and is not empty
             fprintf('Recalibrating eye tracker before Part 5...\n');
             DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
@@ -102,7 +86,7 @@ This is to not clog up main experiment scripts, but also have consistent expPara
             KbName('UnifyKeyNames');
             spaceKey = KbName('SPACE');
             KbWait(-1, 2); % Wait for key release before proceeding
-            while true % Wait for space key
+            while true % wait space
                 [~, ~, keyCode] = KbCheck;
                 if keyCode(spaceKey)
                     break;
@@ -111,71 +95,77 @@ This is to not clog up main experiment scripts, but also have consistent expPara
             calibrateTobii(window, windowRect, eyetracker, expParams);
             fprintf('Recalibration complete.\n');
         end
-        
+        % run p5 
         p5(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
-        
+
         %{ 
+ERROR TO REVISIT
+
 p5: All games complete. Saving event data...
 Warning: Could not save demo log as .csv, possibly due to inconsistent struct fields. Error: Input structure must be a scalar structure, or a structure array
 with one column or one row. 
         %}
 
-        showEndScreen(window, expParams);
+        showEndScreen(window, expParams); % thank participant and exit
 
     catch ME
-        % only the wrapper function should handle catch blocks of errors 
 
-        % clean up ptb when we get an error 
-        sca; % Close all Psychtoolbox windows
-        ShowCursor; % Restore cursor
-        Priority(0); % Reset MATLAB priority
-        
-        % Check if ioObj exists and is not empty before trying to use it
-        if exist('ioObj', 'var') && ~isempty(ioObj)
-            % Further check if io64 can be called safely
-            % This might depend on how io64 handles an uninitialized/invalid object
-            % Assuming io64(ioObj) would error if ioObj is [] but not a proper object
-            % A more robust check might involve checking the 'status' from io64 if available
-            % or simply ensuring it's a valid object of the expected type.
-            % For now, the exist and ~isempty check is a good first step.
-            try 
-                if io64(ioObj) == 0 % Check if ioObj is valid and connection is open
-                    io64(ioObj, address, 0); % Send a zero trigger to reset parallel port
-                end
-            catch ioCleanupME
-                warning('Could not clean up ioObj: %s', ioCleanupME.message);
-            end
-        end
-        
-        % Check if eyetracker exists and is not empty before trying to use it
-        if exist('eyetracker', 'var') && ~isempty(eyetracker)
-            try
-                % Assuming tetio_stopTracking, tetio_disconnectTracker, tetio_cleanUp
-                % are the correct functions and are on the path.
-                % These might need to be called conditionally based on eyetracker state.
-                % For example, check if eyetracker is an object and has a 'is_tracking' property
-                % if eyetracker.is_tracking % (Example, actual property name may vary)
-                %    eyetracker.stop_gaze_data(); 
-                % end
-                % eyetracker.disconnect();
-                
-                % Using the functions mentioned in previous version:
-                tetio_stopTracking(); % Stop Tobii tracking if active (ensure this is safe to call if not tracking)
-                tetio_disconnectTracker(); % Disconnect Tobii
-                tetio_cleanUp(); % Clean up Tobii SDK
-            catch tetioME
-                warning('Tobii cleanup failed: %s', tetioME.message);
-            end
-        end
+        % clean up ptb when error 
+        sca; 
+        ShowCursor;
+        Priority(0); 
+
+        % commented out below code on 6/19. Seems pointless. There is no
+        % logical reason to check if EEG port and Tobii work if we've
+        % already entered the catchME part of the code. Something else has
+        % already gone terribly wrong at that point for a crash to happen.
+        % HOWEVER SHOULD KEEP UNTIL REAL EXP MODE WORKS I.E. DO NOT DELTE 
+
+        % % Check if ioObj exists and is not empty before trying to use it
+        % if exist('ioObj', 'var') && ~isempty(ioObj)
+        %     % Further check if io64 can be called safely
+        %     % This might depend on how io64 handles an uninitialized/invalid object
+        %     % Assuming io64(ioObj) would error if ioObj is [] but not a proper object
+        %     % A more robust check might involve checking the 'status' from io64 if available
+        %     % or simply ensuring it's a valid object of the expected type.
+        %     % For now, the exist and ~isempty check is a good first step.
+        %     try 
+        %         if io64(ioObj) == 0 % Check if ioObj is valid and connection is open
+        %             io64(ioObj, address, 0); % Send a zero trigger to reset parallel port
+        %         end
+        %     catch ioCleanupME
+        %         warning('Could not clean up ioObj: %s', ioCleanupME.message);
+        %     end
+        % end
+        % 
+        % % Check if eyetracker exists and is not empty before trying to use it
+        % if exist('eyetracker', 'var') && ~isempty(eyetracker)
+        %     try
+        %         % Assuming tetio_stopTracking, tetio_disconnectTracker, tetio_cleanUp
+        %         % are the correct functions and are on the path.
+        %         % These might need to be called conditionally based on eyetracker state.
+        %         % For example, check if eyetracker is an object and has a 'is_tracking' property
+        %         % if eyetracker.is_tracking % (Example, actual property name may vary)
+        %         %    eyetracker.stop_gaze_data(); 
+        %         % end
+        %         % eyetracker.disconnect();
+        % 
+        %         % Using the functions mentioned in previous version:
+        %         tetio_stopTracking(); % Stop Tobii tracking if active (ensure this is safe to call if not tracking)
+        %         tetio_disconnectTracker(); % Disconnect Tobii
+        %         tetio_cleanUp(); % Clean up Tobii SDK
+        %     catch tetioME
+        %         warning('Tobii cleanup failed: %s', tetioME.message);
+        %     end
+        % end
         
         % Re-throw the error to display details in the command window
         rethrow(ME);
     end
     
-    % --- Final Cleanup after successful experiment ---
-    % If the try block completes successfully, ensure PTB is closed.
-    % This is already handled by sca in showEndScreen, but including it here
-    % ensures it's always done if showEndScreen wasn't reached or modified.
+    % clean up after exp. 
+    % already handled in showEndScreen, but including here ensures it
+    % always happens if some other bug occurs 
     sca;
     ShowCursor;
     Priority(0);
