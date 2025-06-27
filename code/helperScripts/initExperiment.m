@@ -46,6 +46,7 @@ expParams = struct(); % Initialize main params structure
 % store some info
 expParams.subjID = subjID;
 expParams.demoMode = demoMode;
+expParams.saveBoardSnapShot = 1; % manual setting, will save boardsnap shots to designated folder 
      
 % set ITI here
 itiFcn = @() 1.0 + rand * 0.2;  % ITI between 1000–1200 ms
@@ -160,7 +161,7 @@ if demoMode % extra demo mode file pathway check, so many past errors / problems
     while true
         % user confirmation
         prompt = 'Proceed with displayed filepathways? (Y/N): ';
-        response = input(prompt, 's');
+        response = strtrim(input(prompt, 's'));
 
         % Check response
         if strcmpi(response, 'Y') || strcmpi(response, 'Yes')
@@ -182,6 +183,7 @@ expParams.baseDataDir = baseDataDir;
 expParams.subjPaths.subjRootDir = fullfile(expParams.baseDataDir, subjID);
 expParams.subjPaths.eyeDir = fullfile(expParams.subjPaths.subjRootDir, 'eyeData');
 expParams.subjPaths.behavDir = fullfile(expParams.subjPaths.subjRootDir, 'behavioralData');
+expParams.subjPaths.boardData = fullfile(expParams.subjPaths.subjRootDir, 'boardSnapshots');
 expParams.subjPaths.miscDir = fullfile(expParams.subjPaths.subjRootDir, 'misc');
 
 % check existence of above directories and create if not found
@@ -194,14 +196,15 @@ end
 if ~exist(expParams.subjPaths.behavDir, 'dir')
     mkdir(expParams.subjPaths.behavDir);
 end
+if ~exist(expParams.subjPaths.boardData, 'dir')
+    mkdir(expParams.subjPaths.boardData)
+end
 if ~exist(expParams.subjPaths.miscDir, 'dir')
     mkdir(expParams.subjPaths.miscDir)
 end
 if ~exist(expParams.subjPaths.subjRootDir, 'dir')
     error('Failed to create subject''s root directory @: %s', expParams.subjPaths.subjRootDir);
 end
-
-
 
 % flags
 expParams.p1.options.sectionDoneFlag = 0;
@@ -266,28 +269,6 @@ if demoMode
     expParams.p4.options.respTimeout = 1.5; % seconds, how long the subj has to respond. NOTE: Look closely @ how iti & flip are calculated, and if this 'remainder' or 'idle
     %  time we give is actually how long we think it is 
 
-
-    
-    
-
-%======================================================
-%realExp trials & block #'s.  
-    % expParams.p1.options.blocks = 7;
-    % expParams.p1.options.trialsPerBlock = 70;
-    % expParams.p1.options.totalP1Trials = expParams.p1.options.blocks * expParams.p1.options.trialsPerBlock;
-    % % p1, 490 total trials
-    % 
-    % expParams.p2.options.blocks = 7;
-    % expParams.p2.options.trialsPerBlock = 210; %  MUST BE A MULTIPLE OF 3 FOR EXP TO WORK (fit / partial fit / does not fit)
-    % expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
-    % % p2, 1470 total trials
-    % 
-    % expParams.p4.options.blocks = 7;
-    % expParams.p4.options.trialsPerBlock = 50;
-    % expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
-    % p4, 350 total trials
-    %======================================================
-
     % demoMode blocks / trials
     expParams.p1.options.blocks = 4;
     expParams.p1.options.trialsPerBlock = 5;
@@ -301,8 +282,10 @@ if demoMode
     expParams.p4.options.trialsPerBlock = 18; % get more presentation in demoMode
     expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
 
-    expParams.p5.options.gamesAllowed = 2; % this will change to time allowed 
-   
+    % in seconds 
+    expParams.p5.options.totalTime = 3600; % total time, 60 minutes 
+    expParams.p5.options.phaseOne = 150; % force 10 min of play before playbacks OG 600 (cut for testing)
+
 else 
     %% REAL EXPERIMENT MODE
     %% timings 
@@ -398,7 +381,9 @@ else
     % this will be changed to TIME allowed. Once completing the other
     % sections of the experiment, some amount of our three hours remains,
     % and we'll just use all of that for
-    expParams.p5.options.gamesAllowed = 6;
+    expParams.p5.options.totalTime = 3600; % total time, 60 minutes 
+    expParams.p5.options.phaseOne = 600; % 10 min initial playtime 
+
 
     %FIXME: Add time ceiling for games allowed. i.e. if our overall experiment
     % time is over 3hrs, force end screen, or something. Will probably need

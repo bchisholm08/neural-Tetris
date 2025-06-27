@@ -33,13 +33,19 @@ function humanTetrisWrapper(subjID, demoMode)
     try
         %% call initExperiment
         [window, windowRect, expParams, ioObj, address, eyetracker] = initExperiment(subjID, demoMode);
-        % if init is successful, will print to window 
-
+        
         % perform sanity check on initExp struct returned 
         if isempty(window) || ~isstruct(expParams) || isempty(fieldnames(expParams))
             error('humanTetrisWrapper:InitializationFailed', 'initExperiment did not return valid window or expParams. Aborting.');
         end
         %% run exp. sections %% 
+        
+        % natural tetris play 
+        p5(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
+
+        % break 1 
+        betweenSectionBreakScreen(window, expParams);
+
         % p1,  piece presentation 
         p1(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
         
@@ -48,55 +54,56 @@ function humanTetrisWrapper(subjID, demoMode)
 
         % p2, pieces in context / tableaus 
         p2(subjID, demoMode, expParams, ioObj, address, eyetracker);
-        
+ 
+        showEndScreen(window, expParams); % thank participant and exit
+
         % break 2
-        betweenSectionBreakScreen(window, expParams);
+%        betweenSectionBreakScreen(window, expParams);
 
         % recalibrate before p4
         % FIXME this can probably be accomplished in a more graceful way,
         % like maybe WITHIN THE P4 SCRIPT ITSELF WITH THE CUSTOM CALIBRATION FUNCTION I WROTE 
 
-        if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
-            fprintf('Recalibrating eye tracker before 4-AFC...\n');
-            DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
-            Screen('Flip', window);
-            KbName('UnifyKeyNames');
-            spaceKey = KbName('SPACE');
-            KbWait(-1, 2); % Wait for key release before proceeding. why not just wait(.5)  ? 
-            while true % wait for space
-                [~, ~, keyCode] = KbCheck;
-                if keyCode(spaceKey)
-                    break;
-                end
-            end
-            calibrateTobii(window, windowRect, eyetracker, expParams);
-            fprintf('Recalibration complete.\n');
-        end
+        % if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
+        %     fprintf('Recalibrating eye tracker before 4-AFC...\n');
+        %     DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
+        %     Screen('Flip', window);
+        %     KbName('UnifyKeyNames');
+        %     spaceKey = KbName('SPACE');
+        %     KbWait(-1, 2); % Wait for key release before proceeding. why not just wait(.5)  ? 
+        %     while true % wait for space
+        %         [~, ~, keyCode] = KbCheck;
+        %         if keyCode(spaceKey)
+        %             break;
+        %         end
+        %     end
+        %     calibrateTobii(window, windowRect, eyetracker, expParams);
+        %     fprintf('Recalibration complete.\n');
+        % end
+        % 
+        % % 4afc 
+        % p4(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
+        % 
+        % % break 3
+        % betweenSectionBreakScreen(window, expParams);
+        %  % FIXME ''
+        % if ~demoMode && ~isempty(eyetracker) % Check eyetracker exists and is not empty
+        %     fprintf('Recalibrating eye tracker before Part 5...\n');
+        %     DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
+        %     Screen('Flip', window);
+        %     KbName('UnifyKeyNames');
+        %     spaceKey = KbName('SPACE');
+        %     KbWait(-1, 2); % Wait for key release before proceeding
+        %     while true % wait space
+        %         [~, ~, keyCode] = KbCheck;
+        %         if keyCode(spaceKey)
+        %             break;
+        %         end
+        %     end
+        %     calibrateTobii(window, windowRect, eyetracker, expParams);
+        %     fprintf('Recalibration complete.\n');
+        % end
         
-        % 4afc 
-        p4(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
-        
-        % break 3
-        betweenSectionBreakScreen(window, expParams);
-         % FIXME ''
-        if ~demoMode && ~isempty(eyetracker) % Check eyetracker exists and is not empty
-            fprintf('Recalibrating eye tracker before Part 5...\n');
-            DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
-            Screen('Flip', window);
-            KbName('UnifyKeyNames');
-            spaceKey = KbName('SPACE');
-            KbWait(-1, 2); % Wait for key release before proceeding
-            while true % wait space
-                [~, ~, keyCode] = KbCheck;
-                if keyCode(spaceKey)
-                    break;
-                end
-            end
-            calibrateTobii(window, windowRect, eyetracker, expParams);
-            fprintf('Recalibration complete.\n');
-        end
-        % run p5 
-        p5(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
 
         %{ 
 ERROR TO REVISIT
@@ -105,9 +112,6 @@ p5: All games complete. Saving event data...
 Warning: Could not save demo log as .csv, possibly due to inconsistent struct fields. Error: Input structure must be a scalar structure, or a structure array
 with one column or one row. 
         %}
-
-        showEndScreen(window, expParams); % thank participant and exit
-
     catch ME
 
         % clean up ptb when error 
