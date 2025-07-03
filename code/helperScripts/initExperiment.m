@@ -46,7 +46,7 @@ expParams = struct(); % Initialize main params structure
 % store some info
 expParams.subjID = subjID;
 expParams.demoMode = demoMode;
-expParams.saveBoardSnapShot = 1; % manual setting, will save boardsnap shots to designated folder 
+
      
 % set ITI here
 itiFcn = @() 1.0 + rand * 0.2;  % ITI between 1000–1200 ms
@@ -249,7 +249,14 @@ fprintf('Psychtoolbox initialized successfully.\n');
 % initialize the experiment with demoMode settings. If demoMode is false,
 % we'll go on to the 'real' set up section
 if demoMode
+% needed in P5 expParams struct. Will need to make sure we're not
+% overriding any assignments in the first parts of the experiment
+    expParams.ioObj = [];
+    expParams.address = [];
+    expParams.eyeTracker = [];
+    % expParams.gameCount = 0;
 
+    
     %% demoMode timings 
     expParams.rule.minBlockBreakTime = 0;
     expParams.rule.maxBlockBreakTime = 300;
@@ -284,8 +291,12 @@ if demoMode
 
     % in seconds 
     expParams.p5.options.totalTime = 3600; % total time, 60 minutes 
-    expParams.p5.options.phaseOne = 150; % force 10 min of play before playbacks OG 600 (cut for testing)
-
+    expParams.p5.options.phaseOne = 60; % force 10 min of play before playbacks ORIGINALLY 600 (cut for testing)
+    % other p5 options 
+    expParams.p5.saveBoardSnapShot = 1; % manual setting, will save boardsnap shots to designated folder 
+    expParams.p5.gameplayCount = 0;
+    expParams.p5.replayCount = [];
+    expParams.p5.blockSize = 30; % global 
 else 
     %% REAL EXPERIMENT MODE
     %% timings 
@@ -362,6 +373,8 @@ else
         address = [];
     end
 
+    
+
     %% real exp blocks and trials 
     expParams.p1.options.blocks = 7;
     expParams.p1.options.trialsPerBlock = 70;
@@ -384,14 +397,10 @@ else
     expParams.p5.options.totalTime = 3600; % total time, 60 minutes 
     expParams.p5.options.phaseOne = 600; % 10 min initial playtime 
 
-
-    %FIXME: Add time ceiling for games allowed. i.e. if our overall experiment
-    % time is over 3hrs, force end screen, or something. Will probably need
-    % to add something to p1 that adds a `expStartTimestamp` or something.
-    % Then when we get to p5, we can use whatever that time difference is
-    % from three hours (or other time ceiling) to give a countdown timer. I
-    % personally think it would be alright to leave the timer in the upper
-    % corner of the screen--will have to ask JP
+    % other p5 options 
+    expParams.p5.saveBoardSnapShot = 1; % manual setting, will save boardsnap shots to designated folder 
+    expParams.p5.gameplayCount = 0;
+    expParams.p5.replayCount = [];
 
 end % end demoMode/realMode block handling
 

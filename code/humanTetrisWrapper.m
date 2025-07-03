@@ -1,3 +1,4 @@
+
 %-------------------------------------------------------
 % Author: Brady M. Chisholm
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
@@ -45,6 +46,25 @@ function humanTetrisWrapper(subjID, demoMode)
 
         % break 1 
         betweenSectionBreakScreen(window, expParams);
+
+        % complete a calibration before going into final hour of the
+        % experiment. This is half way 
+         if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
+            fprintf('Recalibrating eye tracker before 4-AFC...\n');
+            DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
+            Screen('Flip', window);
+            KbName('UnifyKeyNames');
+            spaceKey = KbName('SPACE');
+            KbWait(-1, 2); % Wait for key release before proceeding. why not just wait(.5)  ? 
+            while true % wait for space
+                [~, ~, keyCode] = KbCheck;
+                if keyCode(spaceKey)
+                    break;
+                end
+            end
+            calibrateTobii(window, windowRect, eyetracker, expParams);
+            fprintf('Recalibration complete.\n');
+        end
 
         % p1,  piece presentation 
         p1(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);

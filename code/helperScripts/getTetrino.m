@@ -21,13 +21,25 @@ function pieces = getTetrino(expParams)
 
     pieceNames = {'I', 'Z', 'O', 'S', 'J', 'L', 'T'};
 
-    pieces = struct('tex', {}, 'rect', {}, 'pID', {}, 'name', {});
-    blockSize = 50; % single piece-section (px) 
+    % pieces = struct('tex', {}, 'rect', {}, 'pID', {}, 'name', {});
+    pieces = struct('tex', {}, 'rect', {}, 'pID', {}, 'name', {}, 'shape', {}, 'coords', {}, 'pivot', {});
+    blockSize = expParams.p5.blockSize; % single piece-section (px) 
     border = 2;     % border width (px)
 
     for p = 1:length(shapes)
         shape = shapes{p};
         [height, width] = size(shape);
+
+        % store the raw shape matrix
+        pieces(p).shape = shape;
+
+        % precompute the [row,col] of every filled block
+        [rIdx, cIdx]   = find(shape);
+        pieces(p).coords = [rIdx, cIdx];
+
+        % define a rotation pivot (you can adjust if you want a different pivot)
+        pieces(p).pivot = ceil([height, width] / 2);
+
 
         % image with black background color
         img = zeros(height * blockSize, width * blockSize, 3);
@@ -46,6 +58,11 @@ function pieces = getTetrino(expParams)
                 end
             end
         end
+        
+pieces(p).shape  = shape;                          % binary matrix
+[r,c]            = find(shape);
+pieces(p).coords = [r, c];                         % 4×2 list
+pieces(p).pivot  = ceil(size(shape)/2);            % center of shape
 
         pieces(p).tex = Screen('MakeTexture', expParams.screen.window, img);
         pieces(p).rect = [0 0 width * blockSize height * blockSize];

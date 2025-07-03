@@ -5,12 +5,12 @@ output: html_document
 
 ```{r get data}
 demoLog_p4_20250623_1312_20250623_131232 <- read.csv("Z:/13-humanTetris/data/ghghghLetJP/misc/demoLog_p4_20250623_1312_20250623_131232.csv")
-
 ```
 
 ```{r run basic stats}
 plot(demoLog_p4_20250623_1312_20250623_131232$trial_overall,demoLog_p4_20250623_1312_20250623_131232$isCorrect)
 ```
+
 ```{r}
 # recode variables 
 finalData$respKey <- dplyr::recode(demoLog_p4_20250623_1312_20250623_131232$responseKey,
@@ -25,4 +25,12 @@ finalData$correctRespKey <- dplyr::recode(demoLog_p4_20250623_1312_20250623_1312
               "bottom" = 3,
               "left" = 4)
 ```
+
+# get eeg snapshots 
+From matlab:
+  boardSnapshot = struct('timestamp', {}, 'board', {}, 'eegTrigs', {});
+```{r}
+
+```
+interested in distribution of triggers, pieces, etc 
 

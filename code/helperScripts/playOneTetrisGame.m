@@ -1,344 +1,495 @@
-function snapshotFile = playOneTetrisGame(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker, gameNum)
+function [snapshotFile, activInfo] = playOneTetrisGame(expParams)
+subjID = expParams.subjID;
+demoMode = expParams.demoMode;
+window = expParams.screen.window;
+windowRect = expParams.screen.windowRect;
+ioObj = expParams.ioObj;
+address = expParams.address;
+eyetracker = expParams.eyeTracker;
 
-% from expParams (to load in)
-% demoMode, window, windowRect, expParams, ioObj, address, eyetracker, gameIdx
+% activeInfo is going to be passed between playOneTetrisGame and
+% playBackGame. It's sole purpose is to keep track of which games we use as
+% a replay, and to ensure we don't use them again
+% ADD IN L8R
+activInfo = struct('gameNum',       {}, ...
+    'fileName',      {}, ...
+    'usedForReplay', {});
 
-    p5_triggers = containers.Map(...
-        {'game_start', 'game_over', 'piece_spawn', 'piece_lock', ...
-         'key_press_left', 'key_press_right', 'key_press_up_rotate', 'key_press_down_softdrop', ...
-         'line_clear_1', 'line_clear_2', 'line_clear_3', 'line_clear_4'}, ...
-        {101, 102, 103, 104, ...
-         111, 112, 113, 114, ...
-         121, 122, 123, 124});
-    
-% for the replay section; add 100 to the triggers above so 2xx is for replays 
+% get shapes and textures
+pieces = getTetrino(expParams);
+boardH = 20;
+boardW = 10;
 
-    % init struct 
-    S = struct(); % to store game state 
+S = struct(); % to store game state
 
-    %FIXME add in code that will save board state anytime it changes  
-    
-    % piece and board 
-    S.boardMatrix = zeros(10, 20); % 10 wide by 20 high board 
+% use two matrix design... 
+S.lockedMatrix  = zeros(boardH, boardW, 'uint8');   % blocks that have "landed"
+S.currentPiece  = [];   % linear indices of the 4 falling blocks
+S.currentPieceID= 0;    % which tetromino type is falling
 
-    S.pieceColors = {[1 0 0], [0 1 0], [0 0 1], [1 1 0], [1 0 1], [0 1 1], [1 0.5 0]}; % I, T, L, J, Z, S, O; same ordering 
-    
-    S.pieceDefs = {[194:197],[184 185 186 195],[184 185 186 196],...
-                   [184 185 186 194],[194 195 185 186],[184 195 185 196], [185 186 195 196]};
 
-    S.pointsVector = [100 300 500 800]; % reg tetris points for 1, 2, 3, or 4 lines cleared 
-    S.levelFactor = .625;  % speed factor per level
-    
-    S.linesForLevelUp = 5; % change level every 5 lines
+% begin pupillometry collection for game block FIXME WHERE DOES THIS
+% END COLLECTION?!?!
+if ~demoMode
+    eyetracker.get_gaze_data();  % begin / open eyetracker 
+end
 
-    % init logs 
-    eventLog = {}; % cell array for time events 
+blockGazeData = struct('DeviceTimeStamp',{}, 'Left',{}, 'Right',{}, 'Pupil',{});
 
-    lastEEGTrig = NaN; 
+p5_triggers = containers.Map( ...
+    {'game_start','game_over','piece_spawn','piece_lock', ...
+    'piece_drop', ...                   % ← new
+    'key_press_left','key_press_right', ...
+    'key_press_up_rotate','key_press_down_softdrop', ...
+    'line_clear_1','line_clear_2', ...
+    'line_clear_3','line_clear_4'}, ...
+    {101,102,103,104,105,111,112,113,114,121,122,123,124});
 
-    boardSnapBuffer = struct('board',{},'timestamp',{}, 'eegTrigs', lastEEGTrig);
-%% BEGIN A SINGLE GAME
-    
-        % init new game
-        % fprintf('p5: Starting Game %d of %d...\n', gameNum, numGames);
-        % have this deal with TIME and not the num of games 
-        
-        % reset game state vars
-        S.boardMatrix(:) = false;
-        S.currentLevel = 1;
-        S.currentLines = 0;
-        S.currentScore = 0;
-        S.gameOver = false;
-        S.currentPiece = []; % indices of current falling piece
-        S.currentPieceID = 0;
-        S.nextPieceID = ceil(rand*7); % pre-determine first piece randomly s
-        
-        % save game start 
-        logEvent('game_start', gameNum, '');
-        
-        % game countdown screen
-        DrawFormattedText(window, sprintf('Get Ready!\n\nGame %d', gameNum), 'center', 'center', [255 255 255]);
-        Screen('Flip', window);
-        WaitSecs(2);
+% FIXME for the replay section; add 100 to the triggers above so 2xx is for replays, 1xx for player control
 
-        % begin pupillometry collection for game block
-        if ~demoMode, eyetracker.get_gaze_data(); end 
-        blockGazeData = struct('DeviceTimeStamp',{}, 'Left',{}, 'Right',{}, 'Pupil',{});
+% init struct
 
-        % init game elements
-        spawnNewPiece(); % spawn first piece
-        
-        lastDropTime = GetSecs;
-        
-        % single game loop 
-        while ~S.gameOver
-            
-            % --- 1. Check for Pause ---
-            % This function will pause if 'p' is pressed and return the duration.
-            pauseDuration = handlePause(window, expParams.keys);
-            if pauseDuration > 0
-                % Add the pause duration to our timer to "stop the clock"
-                lastDropTime = lastDropTime + pauseDuration;
-            end
+% screw these piece colors, be GRAY! 
+S.pieceColors = {[1 0 0], [0 1 0], [0 0 1], [1 1 0], [1 0 1], [0 1 1], [1 0.5 0]}; % I, T, L, J, Z, S, O; same ordering
 
-            % handle key board input 
-            handleInput();
-            
-            %  update the state of the game 
-            dropInterval = (S.levelFactor ^ (S.currentLevel - 1));
-            if (GetSecs - lastDropTime) > dropInterval
-                movePiece(0, -1); % Attempt to move piece down
-                lastDropTime = GetSecs; % Reset timer AFTER the drop
-            end
-            
-            % draw it all up 
+% S.pieceDefs = {[194:197],[184 185 186 195],[184 185 186 196],...
+%     [184 185 186 194],[194 195 185 186],[184 195 185 196], [185 186 195 196]};
+
+S.pointsVector = [100 300 500 800]; % reg tetris points for 1, 2s, 3, or 4 lines cleared
+S.levelFactor = .25;  % speed factor per level (omit? Ask JP) ORIGINAL GAME IS .625
+
+S.linesForLevelUp = 5; % change level every 5 lines. Probably dropping this. See above
+
+% init special logs
+eventLog = struct('timestamp', {}, 'eventType', {}, 'val1', {}, 'val2', {});
+
+% lastEEGTrig = NaN; % overwrite?
+% currentEEGTrig = NaN;
+
+boardSnapshot = struct('timestamp', {}, 'board', {}, 'eegTrigs', {});
+
+%% initialize a new game
+
+% reset game state vars
+S.currentLevel = 1;
+S.currentLines = 0;
+S.currentScore = 0;
+S.gameOver = false;
+S.currentPiece = []; % indices of current falling piece
+S.currentPieceID = 0;
+S.nextPieceID = ceil(rand*7); % pre-determine first piece randomly
+
+% save game start
+currentEEGTrig = logEvent('game_start');
+
+% game countdown screen
+DrawFormattedText(window, sprintf('Get Ready!\n\nGame %d',expParams.p5.gameplayCount), 'center', 'center', [255 255 255]);
+% expParams.p5.gameplayCount is able to keep track of game count; i.e. has
+% correct scope. Errors about eeg triggers are mostly about scope.
+Screen('Flip', window);
+WaitSecs(2);
+
+%% after you spawn first piece, snapshot it:
+currentEEGTrig = spawnNewPiece();
+drawGameState();
+Screen('Flip', window);
+frameStamp = GetSecs;
+
+visibleBoard = S.lockedMatrix;
+visibleBoard(S.currentPiece) = S.currentPieceID;
+boardSnapshot(end+1) = struct( ...
+    'timestamp', frameStamp, ...          % use the same timestamp you just grabbed
+    'board',     visibleBoard, ...        % now includes the falling piece
+    'eegTrigs',  currentEEGTrig ...
+);
+lastDropTime = GetSecs;
+
+%% now main loop:
+while ~S.gameOver
+
+    % reset the frame trigger
+    lastEEGTrig    = NaN;
+    currentEEGTrig = NaN;
+
+    pauseDur = handlePause(window, expParams.keys);
+    if isempty(pauseDur)
+         pauseDur = 0; 
+    end
+
+    if pauseDur > 0
+        lastDropTime = lastDropTime + pauseDur;
+    end
+
+    % 2) handle manual input
+    [lastEEGTrig, didMove] = handleInput();
+    if ~isnan(lastEEGTrig)
+        currentEEGTrig = lastEEGTrig;
+
+        if didMove
+            % ── redraw right away for horizontal/rotate moves ──
             drawGameState();
-            boardSnapBuffer(end+1) = struct('timestamp',GetSecs,'board',S.boardMatrix, 'eegTrigs', lastEEGTrig);
-
-            % flip 
             Screen('Flip', window);
-        end % end single game loop
-        
-        % end of a single game, save 
-        logEvent('game_over', S.currentScore, S.currentLines);
-        snapshotFile = fullfile(expParams.subjPaths.boardData, sprintf('%s_p5_snap_game%02d.mat', subjID, gameNum) );
-        save(snapshotFile,'boardSnapBuffer','-v7.3');
-        % save pupillometry data for this game
-        if ~demoMode
-            pupilFileName = fullfile(expParams.subjPaths.eyeDir, sprintf('%s_p5_pupil_game%d.mat', subjID, gameNum));
-            blockGazeData = [blockGazeData; eyetracker.get_gaze_data()]; % add on final samples
-            save(pupilFileName, 'blockGazeData', '-v7.3');
-            fprintf('p5: Saved pupillometry data for game %d.\n', gameNum);
+            lastDropTime = GetSecs;    % reset your auto‐drop clock
+            continue                    % skip straight to next frame
         end
+    end
 
-        % 6.11.25 FIXME add in "wait for the next game to begin" while under the
-        % game time ceiling. Once < a certain threshold, just give "wait
-        % for game to end" message 
-        DrawFormattedText(window, sprintf('Game Over!\n\nFinal Score: %d\n\nPlease wait.....', S.currentScore), 'center', 'center', [255 0 0]);
-        Screen('Flip', window);
-        WaitSecs(4); 
+    % 3) automatic drop
+    dropInterval = S.levelFactor^(S.currentLevel - 1);
+    if (GetSecs - lastDropTime) > dropInterval
+        % try to move down one row
+        [didMove,tmpTrig] = movePiece(0, -1); % what is tmpTrig output? 
+        if didMove
+            % on *every* successful drop, send piece_drop
+            dropTrig       = logEvent('piece_drop');
+            currentEEGTrig = dropTrig;
+        elseif ~isnan(tmpTrig)
+            % collision→spawn new piece
+            currentEEGTrig = tmpTrig;
+        end
+        lastDropTime = GetSecs;
+    end
+
+    % 4) draw + snapshot
+    drawGameState();
+    Screen('Flip', window);
+    frameStamp = GetSecs; % which one of these do we want?
+    boardSnapshot(end+1) = struct( ...
+        'timestamp', frameStamp, ...
+        'board',     S.lockedMatrix, ...
+        'eegTrigs',  currentEEGTrig ...
+        );
+
+    % 5) clear the port
+    % WaitSecs(0.002);
+    if  ~isempty(ioObj)
+        io64(ioObj, address, 0);
+    end
+
+    % debug print
+    if demoMode
+        fprintf('Trigger: %d at %.4f\n', currentEEGTrig, frameStamp);
+    end
+end
+
+% end of game; so save
+
+lastEEGTrig = logEvent('game_over', S.currentScore, S.currentLines);
+snapshotFile = fullfile(expParams.subjPaths.boardData, sprintf('%s_p5_boardSnapshot_g#%02d.mat', subjID, expParams.p5.gameplayCount));
+
+visibleBoard = S.lockedMatrix;
+visibleBoard(S.currentPiece) = S.currentPieceID;
+boardSnapshot(end+1) = struct( ...
+    'timestamp', GetSecs, ...
+    'board',     visibleBoard, ...
+    'eegTrigs',  currentEEGTrig ...
+);
+
+fprintf('Saved board snapshot for game %d.\n\n\n', expParams.p5.gameplayCount);
+save(snapshotFile, 'boardSnapshot', 'eventLog', '-v7.3');
+
+% save pupillometry data
+if ~demoMode
+    pupilFileName = fullfile(expParams.subjPaths.eyeDir, sprintf('%s_p5_pupilData_g#02%d.mat', subjID, expParams.p5.gameplayCount));
+    blockGazeData = [blockGazeData; eyetracker.get_gaze_data()]; % add on final samples for game
+    save(pupilFileName, 'blockGazeData', '-v7.3');
+    fprintf('p5: Saved pupillometry data for game %d.\n', expParams.p5.gameplayCount);
+end
+
+% save to special log
+activInfo(end+1) = struct( ...
+    'gameNum', expParams.p5.gameplayCount, ...
+    'fileName', snapshotFile, ...
+    'usedForReplay', false ...
+    );
+
+% send game over
+DrawFormattedText(window, sprintf('Game Over!\n\nFinal Score: %d\n\nPlease wait.....', S.currentScore), 'center', 'center', [255 0 0]);
+Screen('Flip', window);
+% dwell (FIXME this should be an expParams rule...)
+WaitSecs(4);
 
 %========================================================
 %======================HELPER SCRIPTS====================
 %========================================================
-% helper scripts 
-    function  lastEEGTrig = logEvent(eventType, val1, val2)
-     % Helper to log events and send triggers
-     % modified 6.27.25 to return lastEEGTrig variable
-     eventLog = [eventLog; {GetSecs, eventType, val1, val2}];
-     if ~demoMode && ~isempty(ioObj) && isKey(p5_triggers, eventType)
-         trigVal = p5_triggers(eventType);
-         io64(ioObj, address, trigVal);
-         lastEEGTrig = trigVal;  % update current trigger
-     else
-         lastEEGTrig = NaN; % No trigger sent this frame
-     end
+    function lastEEGTrig = logEvent(eventType, val1, val2)
+        % Helper to (1) record, (2) send, and (3) print every trigger
+
+        if nargin < 2, val1 = ''; end
+        if nargin < 3, val2 = ''; end
+
+        % 1) Append to eventLog
+        newEntry = struct( ...
+            'timestamp', GetSecs, ...
+            'eventType', eventType, ...
+            'val1',       val1, ...
+            'val2',       val2  ...
+            );
+        eventLog(end+1) = newEntry;
+
+        % 2) If this event has an EEG code, send it out
+        if isKey(p5_triggers, eventType)
+            trigVal = p5_triggers(eventType);
+
+            % ALWAYS send to the port, demoMode or not
+            if ~isempty(ioObj)
+                io64(ioObj, address, trigVal);
+            end
+
+            % 3) Print for debugging
+            fprintf('[LOGGED] Event: %-15s → %3d @ %.4f\n', ...
+                eventType, trigVal, GetSecs);
+
+            lastEEGTrig = trigVal;
+        else
+            lastEEGTrig = NaN;
+        end
+    end
+
+
+function spawnTrig = spawnNewPiece()
+    % pick up IDs…
+    S.currentPieceID = S.nextPieceID;
+    S.nextPieceID    = randi(7);
+
+    % compute new linear indices for the 4 blocks
+    shape = pieces(S.currentPieceID).shape;
+    [h,w] = size(shape);
+    [rIdx,cIdx] = find(shape);
+    baseRow = boardH - h + 1;
+    baseCol = floor((boardW - w)/2) + 1;
+    absRows = baseRow + rIdx-1;
+    absCols = baseCol + cIdx-1;
+    newIdx  = sub2ind([boardH,boardW], absRows, absCols);
+
+    % spawn‐collision → game over
+    if any(S.lockedMatrix(newIdx))
+        S.gameOver = true;
+        spawnTrig = logEvent('game_over');
+        return;
+    end
+
+    % record only the falling piece
+    S.currentPiece = newIdx;
+
+    % pivot bookkeeping (unchanged)…
+    shapePivot = pieces(S.currentPieceID).pivot;
+    pivotRow   = baseRow + shapePivot(1) - 1;
+    pivotCol   = baseCol + shapePivot(2) - 1;
+    S.pivotBoardIdx = sub2ind([boardH,boardW], pivotRow, pivotCol);
+
+    spawnTrig = logEvent('piece_spawn', S.currentPieceID, '');
 end
 
 
-    function spawnNewPiece()
-        S.currentPieceID = S.nextPieceID;
-        S.nextPieceID = ceil(rand*7); % Choose the next piece
-        S.currentPiece = S.pieceDefs{S.currentPieceID};
-        S.currentRotation = 1;
-        
-        % Check for game over condition
-        if any(S.boardMatrix(S.currentPiece))
-            S.gameOver = true;
-            return;
-        end
-        
-        S.boardMatrix(S.currentPiece) = S.currentPieceID; % Place piece on board matrix
-        logEvent('piece_spawn', S.currentPieceID, '');
-    end
 
-    function handleInput()
-        [keyIsDown, ~, keyCode] = KbCheck(-1);
+    function [lastEEGTrig, didMove] = handleInput()
+        lastEEGTrig = NaN;
+        didMove     = false;
+        [keyIsDown,~,keyCode] = KbCheck(-1);
+
         if keyIsDown
             if keyCode(expParams.keys.left)
-                logEvent('key_press_left', '', '');
-                movePiece(-1, 0);
+                lastDropTime = GetSecs;
+                lastEEGTrig = logEvent('key_press_left');
+                [didMove,~] = movePiece(-1,0);
+
             elseif keyCode(expParams.keys.right)
-                logEvent('key_press_right', '', '');
-                movePiece(1, 0);
+                lastDropTime = GetSecs;
+                lastEEGTrig = logEvent('key_press_right');
+                [didMove,~] = movePiece(1,0);
+
             elseif keyCode(expParams.keys.down)
-                logEvent('key_press_down_softdrop', '', '');
-                movePiece(0, -1);
-                lastDropTime = GetSecs; % Reset drop timer
+                lastDropTime = GetSecs;
+                lastEEGTrig = logEvent('key_press_down_softdrop');
+                [didMove,~] = movePiece(0,-1);
+
             elseif keyCode(expParams.keys.up)
-                logEvent('key_press_up_rotate', '', '');
-                rotatePiece();
+                lastDropTime = GetSecs;
+                % DUPLICATE lastEEGTrig = logEvent('key_press_up_rotate');
+                [didMove,lastEEGTrig] = rotatePiece();
+
             elseif keyCode(expParams.keys.escape)
-                S.gameOver = true; % Allow user to quit game
+                lastDropTime = GetSecs;
+                S.gameOver = true;
             end
-            WaitSecs(0.08); % A small delay to debounce key presses
+
+            % ── reset the drop-timer on any movement ──
+            if didMove
+                lastDropTime = GetSecs;
+            end
+
+            % ── wait for key release to avoid repeats ──
+            % KbReleaseWait;
+            WaitSecs(0.08);
         end
-    end % handle input function end 
-
-   function didMove = movePiece(colOffset, rowOffset)
-    
-    % Get the current row positions of all blocks in the piece
-    currentRows = rem(S.currentPiece - 1, 10) + 1;
-    
-    % --- BOUNDARY CHECK ---
-    % If trying to move left (colOffset = -1) but already at the left wall (min(rows) is 1)
-    if colOffset < 0 && min(currentRows) == 1
-        return; % Abort the move entirely
     end
-    % If trying to move right (colOffset = 1) but already at the right wall (max(rows) is 10)
-    if colOffset > 0 && max(currentRows) == 10
-        return; % Abort the move entirely
-    end
-    % --- END BOUNDARY CHECK ---
 
-    % Erase current piece from board
-    S.boardMatrix(S.currentPiece) = 0;
-    
-    % Calculate new proposed position
-    newPiece = S.currentPiece + colOffset + (rowOffset * 10);
-    
-    % Check for collisions with other pieces or the bottom of the board
-    cols = ceil(newPiece/10);
-    
-    didMove = true;
-    if any(cols < 1) || any(S.boardMatrix(newPiece))
-        % Collision detected, move is invalid
-        newPiece = S.currentPiece; % Revert to old position
-        didMove = false;
-    end
-    
-    % Redraw piece in its new (or old) position
-    S.boardMatrix(newPiece) = S.currentPieceID;
-    S.currentPiece = newPiece;
-    
-    % If movement was down and it failed, the piece has locked
-    if rowOffset < 0 && ~didMove
-        logEvent('piece_lock', S.currentPieceID, '');
-        checkForLineClears();
-        spawnNewPiece();
-    end
-   end % move piece function end 
 
-function rotatePiece()
-    % This function correctly rotates a piece by treating its blocks as
-    % a set of coordinates relative to a pivot point.
-    
-    % --- Step 1: Get current piece's local coordinates ---
-    % Use the 2nd block of the piece as the pivot point for rotation.
-    pivotPointIndex = S.currentPiece(2);
-    
-    % Convert the pivot's linear index to its board [row, col] position.
-    % Remember: in our 10x20 grid, 'row' is the x-position (1-10) and 'col' is the y-position (1-20).
-    pivotCol = floor((pivotPointIndex - 1) / 10) + 1;
-    pivotRow = rem(pivotPointIndex - 1, 10) + 1;
-    
-    % Get the [row, col] coordinates of all blocks in the current piece.
-    currentCols = floor((S.currentPiece - 1) / 10) + 1;
-    currentRows = rem(S.currentPiece - 1, 10) + 1;
-    
-    % Get the coordinates relative to the pivot point. This is the key step.
-    relativeRows = currentRows - pivotRow;
-    relativeCols = currentCols - pivotCol;
-    
-    % --- Step 2: Apply Rotation ---
-    % Define the 90-degree clockwise rotation matrix for [row, col] coordinates.
-    rotMatrix = [0 -1; 1 0];
-    
-    % Assemble coordinates as a 2xN matrix where each column is [row; col].
-    relativeCoords = [relativeRows; relativeCols];
-    
-    % Apply rotation: NewCoords = RotationMatrix * OldCoords
-    newRelativeCoords = rotMatrix * relativeCoords;
-    
-    % --- Step 3: Calculate New Board Position and Check for Collisions ---
-    % Translate the new relative coordinates back to the board's absolute grid.
-    newAbsRows = round(newRelativeCoords(1,:)) + pivotRow;
-    newAbsCols = round(newRelativeCoords(2,:)) + pivotCol;
-    
-    % Convert the new absolute [row, col] coordinates back to linear indices.
-    newPieceIndices = (newAbsCols - 1) * 10 + newAbsRows;
-    
-    % --- Step 4: Update Board State ---
-    % First, erase the current piece from the board to check for collisions.
-    S.boardMatrix(S.currentPiece) = 0;
-    
-    % Check if the new position is valid (within bounds and not colliding with other pieces).
-    isValidMove = all(newAbsRows >= 1) && all(newAbsRows <= 10) && ...
-                  all(newAbsCols >= 1) && all(newAbsCols <= 20) && ...
-                  ~any(S.boardMatrix(newPieceIndices));
-                  
-    if isValidMove
-        % No collision, update to the new rotated position.
-        S.currentPiece = newPieceIndices;
+function [didMove, lastEEGTrig] = movePiece(colOffset, rowOffset)
+    didMove     = false;
+    lastEEGTrig = NaN;
+
+    % 1) decode current falling piece coords
+    [rows, cols] = ind2sub([boardH,boardW], S.currentPiece);
+
+    % 2) proposed positions
+    newRows = rows + rowOffset;
+    newCols = cols + colOffset;
+
+    % 3) bounds check
+    if any(newRows<1) || any(newRows>boardH) || any(newCols<1) || any(newCols>boardW)
+if rowOffset < 0
+    logEvent('piece_lock');              % lock 
+    S.lockedMatrix(S.currentPiece) = S.currentPieceID;
+    checkForLineClears();
+    spawnTrig = spawnNewPiece();        % get the new spawn trigger
+    lastEEGTrig = spawnTrig;            % return it to the caller
+end
+
+        return
     end
-    
-    % Redraw the piece in its final position (either the new rotated one or the original).
-    S.boardMatrix(S.currentPiece) = S.currentPieceID;
 
-end % rotate piece end 
+    % 4) collision vs locked
+    newIdx = sub2ind([boardH,boardW], newRows, newCols);
+    if any(S.lockedMatrix(newIdx))
+        if rowOffset < 0
+            lastEEGTrig = logEvent('piece_lock');
+            S.lockedMatrix(S.currentPiece) = S.currentPieceID;
+            checkForLineClears();
+            spawnNewPiece();
+        end
+        return
+    end
 
-    function checkForLineClears()
-        fullRows = find(all(S.boardMatrix, 1)); % Find row indices that are full
-        numCleared = length(fullRows);
-        
+    % 5) valid move → update falling piece
+    S.currentPiece = newIdx;
+    didMove        = true;
+
+        % ── update pivot so future rotates spin in place ──
+    [pr, pc] = ind2sub([boardH,boardW], S.pivotBoardIdx);
+    pr_new = pr + rowOffset;
+    pc_new = pc + colOffset;
+    % only write if still on the board:
+    if pr_new >= 1 && pr_new <= boardH && pc_new >= 1 && pc_new <= boardW
+        S.pivotBoardIdx = sub2ind([boardH,boardW], pr_new, pc_new);
+    else
+        % out-of-bounds pivot would crash – so keep old pivot
+    end
+end
+
+function [didMove, lastEEGTrig] = rotatePiece()
+    didMove     = false;
+    lastEEGTrig = NaN;
+
+    % (A) Get the four current block positions on the board
+    [rows, cols] = ind2sub([boardH, boardW], S.currentPiece);
+
+    % (B) Where is the pivot right now?
+    pivotBoardIdx = S.pivotBoardIdx;
+    [pRow, pCol]  = ind2sub([boardH, boardW], pivotBoardIdx);
+
+    % (C) Compute each block's offset from the pivot…
+    relRows = rows - pRow;
+    relCols = cols - pCol;
+
+    % (D) …rotate those offsets 90° CW
+    newRelRows = -relCols;
+    newRelCols =  relRows;
+
+    % (E) Translate back to absolute board coords
+    newRows = pRow + newRelRows;
+    newCols = pCol + newRelCols;
+
+    % (F) Bounds‐check: must stay on the board
+    if any(newRows < 1) || any(newRows > boardH) || any(newCols < 1) || any(newCols > boardW)
+        return
+    end
+
+    % (G) Collision‐check against locked blocks
+    newIdx = sub2ind([boardH, boardW], newRows, newCols);
+    if any(S.lockedMatrix(newIdx))
+        return
+    end
+
+    % (H) Commit the rotation
+    S.currentPiece = newIdx;
+    didMove        = true;
+    lastEEGTrig    = logEvent('key_press_up_rotate');
+end
+
+    function lastEEGTrig =  checkForLineClears()
+        lastEEGTrig = nan;
+
+        fullRows = find(all(S.lockedMatrix,2));
+        numCleared = numel(fullRows);
+
+
         if numCleared > 0
-            % Log event and send trigger
-            logEvent(sprintf('line_clear_%d', numCleared), numCleared, '');
-            
-            % Update score and lines
+            % 1) send the clear trigger
+            lastEEGTrig = logEvent(sprintf('line_clear_%d', numCleared), numCleared, '');
+
+            % 2) update score & lines
             S.currentLines = S.currentLines + numCleared;
-            S.currentScore = S.currentScore + (S.pointsVector(numCleared) * S.currentLevel);
-            
-            % Clear rows and shift board down
-            S.boardMatrix(:, fullRows) = []; % Delete full rows
-            S.boardMatrix = [S.boardMatrix, zeros(10, numCleared)]; % Add empty rows at the top
-            
-            % Check for level up (can likely comment out...) 
-            if floor(S.currentLines / S.linesForLevelUp) >= S.currentLevel
+            S.currentScore = S.currentScore + S.pointsVector(numCleared)*S.currentLevel;
+
+            % 3) clear and shift the board
+            S.lockedMatrix(fullRows,:) = [];
+            S.lockedMatrix = [ S.lockedMatrix ; zeros(numCleared, boardW, 'uint8') ];
+    
+            % 4) level-up if needed
+            if floor(S.currentLines/S.linesForLevelUp) >= S.currentLevel
                 S.currentLevel = S.currentLevel + 1;
             end
         end
-    end % check for line clears end 
+
+    end % check for line clears end
 
     function drawGameState()
-        % Draws the current board state, score, and other info.
-        
-        % Board parameters
-        boardWidth = 10;
-        boardHeight = 20;
-        blockSize = 30; % pixels
+        boardWidth  = boardW;
+        boardHeight = boardH;
+        blockSize   =     expParams.p5.blockSize;            % ← hard‐code your desired cell size
         boardOutlineWidth = 5;
-        
+
         boardRectX = (windowRect(3) - boardWidth*blockSize)/2;
         boardRectY = (windowRect(4) - boardHeight*blockSize)/2;
-        
-        boardRect = [boardRectX, boardRectY, boardRectX + boardWidth*blockSize, boardRectY + boardHeight*blockSize];
-        
-        % Draw board outline
+        boardRect  = [boardRectX, boardRectY, ...
+            boardRectX + boardWidth*blockSize, ...
+            boardRectY + boardHeight*blockSize];
+
         Screen('FrameRect', window, [255 255 255], boardRect, boardOutlineWidth);
-        
-        % Draw the pieces on the board
-        for r = 1:boardHeight
-            for c = 1:boardWidth
-                if S.boardMatrix(c, r)
-                    % Determine which piece this block belongs to (this requires more advanced state tracking)
-                    % For now, draw all blocks with a default color
-                    blockColor = [128 128 128]; % Default gray
-                    
-                    blockX = boardRectX + (c-1)*blockSize;
-                    blockY = boardRectY + (boardHeight-r)*blockSize; % Y is inverted in PTB
-                    blockRect = [blockX, blockY, blockX+blockSize, blockY+blockSize];
-                    Screen('FillRect', window, blockColor, blockRect);
-                    Screen('FrameRect', window, [0 0 0], blockRect, 1); % Black border for blocks
-                end
-            end
-        end
-        
-        % Draw Score, Level, Lines
-        scoreText = sprintf('Score: %d\nLevel: %d\nLines: %d', S.currentScore, S.currentLevel, S.currentLines);
-        DrawFormattedText(window, scoreText, boardRect(3) + 20, boardRect(2), [255 255 255]);
-    end % draw game state function end 
+
+% 1) draw all locked blocks
+for r = 1:boardH
+  for c = 1:boardW
+    pid = S.lockedMatrix(r,c);
+    if pid>0
+      x = boardRectX + (c-1)*blockSize;
+      y = boardRectY + (boardHeight-r)*blockSize;
+      b = [x y x+blockSize y+blockSize];
+      Screen('FillRect',  window, [128 128 128], b);
+      Screen('FrameRect', window, [0 0 0], b, 1);
+    end
+  end
+end
+
+% 2) overlay falling piece
+[rP, cP] = ind2sub([boardH,boardW], S.currentPiece);
+for i = 1:numel(rP)
+  x = boardRectX + (cP(i)-1)*blockSize;
+  y = boardRectY + (boardHeight-rP(i))*blockSize;
+  b = [x y x+blockSize y+blockSize];
+  Screen('FillRect',  window, [128 128 128], b);
+  Screen('FrameRect', window, [0 0 0], b, 1);
+end
+
+
+        scoreText = sprintf('Score: %d\nLevel: %d\nLines: %d', ...
+            S.currentScore, S.currentLevel, S.currentLines);
+        DrawFormattedText(window, scoreText, boardRect(3)+20, boardRect(2), [255 255 255]);
+    end
+
 
 %===================================
 
-end % function end 
+end % function end

@@ -1,38 +1,70 @@
-function playBackGame(snapshotFile, window, windowRect)
+function playBackGame(snapshotFile, expParams)
 
-    % FIXME add in expParam window/screen vars 
+window = expParams.screen.window;
+windowRect = expParams.screen.windowRect;
 
-    % Load snapshot struct from .mat
-    data = load(snapshotFile);
-    snapshots = data.boardSnapBuffer;  % or change field name accordingly
+% FIXME add in expParam window/screen vars
+    ShowCursor; % for debugging......
+% Load snapshot struct from .mat
+data = load(snapshotFile);
 
-    % Extract timing
-    times = [snapshots.timestamp];
-    delays = [0, diff(times)];
+% update .mat variable structure
+% struct('timestamp',GetSecs,'board',S.boardMatrix, 'eegTrigs', lastEEGTrig)
 
-    % Set up screen
-    blockSize = 30;
-    boardX = (windowRect(3) - 10*blockSize)/2;
-    boardY = (windowRect(4) - 20*blockSize)/2;
+snapshots = data.boardSnapshot;  % or change field name accordingly
 
-    for k = 1:length(snapshots)
-        board = snapshots(k).board;
+% Extract timing
+times = [snapshots.timestamp];
+delays = [0, diff(times)];
 
-        % Draw board
-        Screen('FillRect', window, [0 0 0]);  % Clear
-        for r = 1:20
-            for c = 1:10
-                if board(c, r)
+% Set up screen (FIXME: PULL FROM expParams) 
+blockSize   = 30;
+boardWidth  = 10;
+boardHeight = 20;
+boardX      = (windowRect(3) - boardWidth * blockSize) / 2;
+boardY      = (windowRect(4) - boardHeight * blockSize) / 2;
+boardRect   = [boardX, boardY, boardX + boardWidth*blockSize, boardY + boardHeight*blockSize];
+
+
+for k = 1:length(snapshots) % for length of snapshots...(not frames--as a matter of fact MORE precise than frame. This is not an issue until it is (i.e. taking 120 seconds to save a .mat snapshot file) 
+    board = snapshots(k).board;
+
+    % Draw board
+    Screen('FillRect', window, [0 0 0]);  % Clear
+
+    % draw board frame 
+    Screen('FrameRect', window, [255 255 255], boardRect, 5);
+       for r = 1:boardHeight
+            for c = 1:boardWidth
+                pieceID = board(c, r); % r,c
+                if pieceID > 0
                     x = boardX + (c-1)*blockSize;
-                    y = boardY + (20 - r)*blockSize;
+                    y = boardY + (boardHeight - r)*blockSize;
                     blockRect = [x, y, x+blockSize, y+blockSize];
-                    Screen('FillRect', window, [255 255 255], blockRect); % color: white
+
+                    blockColor = expParams.colors.piece; % should be gray                   
+
+                    Screen('FillRect', window, blockColor, blockRect);
+                    Screen('FrameRect', window, [0 0 0], blockRect, 1); % black border
                 end
             end
         end
-        Screen('Flip', window);
 
-        % Wait for frame delay
-        WaitSecs(delays(k));
+    % Send EEG trigger if value is non-NaN
+    replayTrig = snapshots(k).eegTrigs;
+    
+    if ~isnan(replayTrig) && ~isempty(ioObj)
+        try
+            io64(ioObj, address, replayTrig + 100);  % Add 100 to distinguish replay triggers
+        catch
+            warning('Failed to send EEG trigger %d at frame %d', replayTrig, k);
+        end
     end
+
+    % add EEG triggers @ flip? 
+    Screen('Flip', window);
+
+    % Wait for frame delay (hint as to sampling rate and FPS we actually capture) 
+    WaitSecs(delays(k));
+end
 end
