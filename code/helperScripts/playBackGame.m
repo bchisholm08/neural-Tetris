@@ -1,12 +1,14 @@
 function playBackGame(snapshotFile, expParams)
-
 window = expParams.screen.window;
 windowRect = expParams.screen.windowRect;
 demoMode  = expParams.demoMode;
 ioObj     = expParams.ioObj;
 address   = expParams.address;
+eyetracker = expParams.eyeTracker;       
+subjID     = expParams.subjID;           
+gameIdx    = expParams.p5.gameplayCount; 
 % FIXME add in expParam window/screen vars
-    ShowCursor; % for debugging......
+
 % Load snapshot struct from .mat
 data = load(snapshotFile);
 
@@ -27,8 +29,34 @@ boardX      = (windowRect(3) - boardWidth * blockSize) / 2;
 boardY      = (windowRect(4) - boardHeight * blockSize) / 2;
 boardRect   = [boardX, boardY, boardX + boardWidth*blockSize, boardY + boardHeight*blockSize];
 
+try % begin try for eye 
+        
+if ~demoMode   
+
+blockGazeData = struct( ...
+    'DeviceTimeStamp', {}, ...
+    'GazeX',           {}, ...
+    'GazeY',           {}, ...
+    'PupilDiaL',       {}, ...
+    'PupilDiaR',       {} );
+
+        % add in struct to save  
+        WaitSecs(1);
+
+tGameStart = GetSecs;
+    eyetracker.start_recording();
+
+    % flush any leftover buffer so samples align with replay start
+    eyetracker.get_gaze_data();
+end 
 
 for k = 1:length(snapshots) % for length of snapshots...(not frames--as a matter of fact MORE precise than frame. This is not an issue until it is (i.e. taking 120 seconds to save a .mat snapshot file) 
+    if ~demoMode
+        newSamples = eyetracker.get_gaze_data();   % grab ALL unread samples
+        if ~isempty(newSamples)
+            blockGazeData(end+1:end+numel(newSamples)) = newSamples;
+        end
+    end
     board = snapshots(k).board;
 
     % Draw board
@@ -72,5 +100,35 @@ for k = 1:length(snapshots) % for length of snapshots...(not frames--as a matter
     % FIX ME THIS TIMING IS BAD!!!!!!!!!!!!!!!!!!!!!!! JITTER B/C OF LARGE
     % FILE OR BAD CODING?!?!?!?! 
     WaitSecs(delays(k));
+
+end % snapshots replay loop end
+
+if ~demoMode
+    % final flush
+    tailSamples = eyetracker.get_gaze_data();
+    if ~isempty(tailSamples)
+        blockGazeData(end+1:end+numel(tailSamples)) = tailSamples;
+    end
+
+    eyetracker.stop_recording();
+    tGameEnd = GetSecs;
+
+    lossL = mean([blockGazeData.PupilDiaL] == 0);
+    lossR = mean([blockGazeData.PupilDiaR] == 0);
+
+    gazeFile = fullfile(expParams.subjPaths.eyeDir, ...
+        sprintf('%s_gamePlayback%03d_gaze.mat', subjID, gameIdx));
+    save(gazeFile, 'blockGazeData', 'tGameStart', 'tGameEnd', 'lossL', 'lossR');
 end
-end
+
+
+catch ME
+    fprintf(2, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
+    fprintf(2, 'ERROR IN SCRIPT: %s\n', ME.stack(1).file); % where error occurred
+    fprintf(2, 'Function: %s, Line: %d\n', ME.stack(1).name, ME.stack(1).line); % function name with line
+    fprintf(2, 'Error Message: %s\n', ME.message);
+    fprintf(2, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
+    
+    rethrow(ME); % rethrow error for wrapper 
+end % try end  
+end % function end 

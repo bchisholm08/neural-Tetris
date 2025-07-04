@@ -373,7 +373,7 @@ else
         address = [];
     end
 
-    %% real exp blocks and trials 
+    %% real exp trials and blocks 
     expParams.p1.options.blocks = 7;
     expParams.p1.options.trialsPerBlock = 70;
     expParams.p1.options.totalP1Trials = expParams.p1.options.blocks * expParams.p1.options.trialsPerBlock;
@@ -409,5 +409,5 @@ else
 end
 fprintf(['\n\n=============================\n' ...
     'initExperiment successfully initialized experiment in %s' ...
-    '\n\n=============================\n'], sillyStringBoi); % this is stupid but I'm keeping it
+    '\n\n=============================\n'], sillyStringBoi);
 end

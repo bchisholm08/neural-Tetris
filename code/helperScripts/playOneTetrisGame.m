@@ -1,11 +1,10 @@
 function [snapshotFile, activInfo, eventLog] = playOneTetrisGame(expParams)
 
-% 'hot fix' info to pass around 
-activInfo = struct( ...
-    'gameNum',       {}, ...
-    'fileName',      {}, ...
-    'usedForReplay', {}  ...
-);
+try
+    
+    
+    gameIdx = expParams.p5.gameplayCount;   
+
 
 subjID = expParams.subjID;
 demoMode = expParams.demoMode;
@@ -15,6 +14,9 @@ ioObj = expParams.ioObj;
 address = expParams.address;
 eyetracker = expParams.eyeTracker;
 
+gazeFile = fullfile(expParams.subjPaths.eyeDir, ...
+            sprintf('%s_game%03d_gaze.mat', subjID, gameIdx));
+activInfo = struct('gameNum',{},'boardFile',{},'gazeFile',{},'usedForReplay',{});
 % get shapes and textures
 pieces = getTetrino(expParams);
 boardH = 20;
@@ -27,18 +29,14 @@ S.lockedMatrix  = zeros(boardH, boardW, 'uint8');   % landed blocks
 S.currentPiece  = [];   % linear indices falling blocks
 S.currentPieceID= 0;    % which piece type 
 
-% begin pupillometry collection for game block FIXME WHERE DOES THIS
-% END COLLECTION?!?!
-if ~demoMode
-    % make sure to point this to eye dir at save 
-    eyetracker.get_gaze_data();  % begin / open eyetracker CLOSE?!?! 
-    fprintf(['\n=======================\n\n' ...
-            'PUPILLOMETRY DATA INIT COLLECTION SUCCESSFUL \n\n' ...
-            '\n=======================\n\n'])
-end
-
 % blockGazeData filled from eyetracker. input
-blockGazeData = struct('DeviceTimeStamp',{}, 'Left',{}, 'Right',{}, 'Pupil',{});
+blockGazeData = struct( ...
+    'DeviceTimeStamp', {}, ...  % Tobii clock (use your field names)
+    'GazeX',           {}, ...  % averaged X in px or deg
+    'GazeY',           {}, ...  % averaged Y
+    'PupilDiaL',       {}, ...  % left eye pupil diam
+    'PupilDiaR',       {}  ...  % right eye pupil diam
+);
 
 p5_triggers = containers.Map( ...
     {'game_start','game_over','piece_spawn','piece_lock', ...
@@ -83,6 +81,10 @@ S.currentPiece = []; % indices of current falling piece
 S.currentPieceID = 0;
 S.nextPieceID = ceil(rand*7); % pre-determine first piece randomly
 
+if ~demoMode
+tGEStart = GetSecs;
+eyetracker.start_recording();   % open recording, capture during countdown
+end 
 % save game start
 currentEEGTrig = logEvent('game_start');
 
@@ -111,7 +113,20 @@ lastDropTime = GetSecs;
 %% now main loop:
 while ~S.gameOver
 
-    % reset the frame trigger
+% begin pupillometry collection for game block FIXME WHERE DOES THIS
+% END COLLECTION?!?!
+
+% GAZE GRAB ───────────────────────────────────────────────
+if ~demoMode
+    newSamples = eyetracker.get_gaze_data();   % pull *all* buffered samples
+    if ~isempty(newSamples)
+        blockGazeData(end+1:end+numel(newSamples)) = newSamples;
+    end
+end
+
+
+
+    % reset frame trigger
     lastEEGTrig    = NaN;
     currentEEGTrig = NaN;
 
@@ -172,7 +187,7 @@ while ~S.gameOver
 
     % 5) clear the port
     % WaitSecs(0.002);
-    if ~demoMode
+        if ~demoMode
     if  ~isempty(ioObj)
         io64(ioObj, address, 0);
     
@@ -182,13 +197,14 @@ while ~S.gameOver
     if demoMode
         fprintf('Trigger: %d at %.4f\n', currentEEGTrig, frameStamp);
     end
-end
-
-% end of game; so save
+end % while end 
+ 
+% end game; so save the rest 
 
 lastEEGTrig = logEvent('game_over', S.currentScore, S.currentLines);
-snapshotFile = fullfile(expParams.subjPaths.boardData, sprintf('%s_p5_boardSnapshot_g%02d.mat', subjID, expParams.p5.gameplayCount));
-
+snapshotFile = fullfile(expParams.subjPaths.boardData, sprintf('%s_p5_boardSnapshot_g%02d.mat', subjID, gameIdx));
+gazeFile = fullfile(expParams.subjPaths.eyeDir, ...
+sprintf('%s_game%03d_gaze.mat', subjID, gameIdx));
 visibleBoard = S.lockedMatrix;
 visibleBoard(S.currentPiece) = S.currentPieceID;
 boardSnapshot(end+1) = struct('timestamp', GetSecs, ...
@@ -198,20 +214,37 @@ boardSnapshot(end+1) = struct('timestamp', GetSecs, ...
 fprintf('Saved board snapshot for game %d.\n\n\n', expParams.p5.gameplayCount);
 save(snapshotFile, 'boardSnapshot', 'eventLog', '-v7.3');
 
-% record this game so the wrapper can log it
-activInfo(end+1) = struct( ...
-'gameNum',       expParams.p5.gameplayCount, ...
-'fileName',      snapshotFile,               ...
-'usedForReplay', false                      ...
-);
 
-% save pupillometry data
 if ~demoMode
-    pupilFileName = fullfile(expParams.subjPaths.eyeDir, sprintf('%s_p5_pupilData_g#02%d.mat', subjID, expParams.p5.gameplayCount));
-    blockGazeData = [blockGazeData; eyetracker.get_gaze_data()]; % add on final samples for game
-    save(pupilFileName, 'blockGazeData', '-v7.3');
-    fprintf('p5: Saved pupillometry data for game %d.\n', expParams.p5.gameplayCount);
+    % final flush *before* stopping
+    finalSamples = eyetracker.get_gaze_data();
+    if ~isempty(finalSamples)
+        blockGazeData(end+1:end+numel(finalSamples)) = finalSamples;
+    end
+
+    eyetracker.stop_recording();
+    tGEEnd = GetSecs;
+
+    % quick QC
+    lossL = mean([blockGazeData.PupilDiaL] == 0);
+    lossR = mean([blockGazeData.PupilDiaR] == 0);
+
+    gazeFile = fullfile(expParams.paths.gaze, ...
+    sprintf('%s_game%03d_gaze.mat', subjID, gameIdx));
+    save(gazeFile, 'blockGazeData', 'tGEStart', 'tGEEnd', 'lossL', 'lossR');
+
+
+else
+    WaitSecs(1);   % demo stub
 end
+
+% record game so the wrapper can log it
+activInfo(end+1) = struct( ...
+'gameNum',      gameIdx, ...
+'boardFile',    snapshotFile, ...
+'gazeFile',     gazeFile, ...
+'usedForReplay', false);
+
 
 % send game over
 DrawFormattedText(window, sprintf('Game Over!\n\nFinal Score: %d\n\nPlease wait.....', S.currentScore), 'center', 'center', [255 0 0]);
@@ -219,7 +252,15 @@ Screen('Flip', window);
 % dwell (FIXME this should be an expParams rule...)
 WaitSecs(4);
 
-
+catch ME
+    fprintf(2, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
+    fprintf(2, 'ERROR IN SCRIPT: %s\n', ME.stack(1).file); % where error occurred
+    fprintf(2, 'Function: %s, Line: %d\n', ME.stack(1).name, ME.stack(1).line); % function name with line
+    fprintf(2, 'Error Message: %s\n', ME.message);
+    fprintf(2, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
+    
+    rethrow(ME); % rethrow error for wrapper 
+end % try end (for eye tracker) 
 
 %========================================================
 %======================HELPER SCRIPTS====================
@@ -504,17 +545,17 @@ end
 
 
 %===================================
-% HOTFIX 
-if isempty(activInfo)
-    % (should never happen, but just in case)
-    activInfo = struct( ...
-        'gameNum',       expParams.p5.gameplayCount, ...
-        'fileName',      snapshotFile,            ...
-        'usedForReplay', false                   ...
-    );
-else
-    % if somehow you have more, return only the last one
-    % % %activInfo = activInfo(end);
-end
+% % % % % % % % % % HOTFIX 
+% % % % % % % % % if isempty(activInfo)
+% % % % % % % % %     % (should never happen, but just in case)
+% % % % % % % % %     activInfo = struct( ...
+% % % % % % % % %         'gameNum',       expParams.p5.gameplayCount, ...
+% % % % % % % % %         'fileName',      snapshotFile,            ...
+% % % % % % % % %         'usedForReplay', false                   ...
+% % % % % % % % %     );
+% % % % % % % % % else
+% % % % % % % % %     % if somehow you have more, return only the last one
+% % % % % % % % %     % % %activInfo = activInfo(end);
+% % % % % % % % % end
 
 end % function end

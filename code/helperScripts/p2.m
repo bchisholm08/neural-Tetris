@@ -12,6 +12,19 @@ function p2(subjID, demoMode, expParams, ioObj, address, eyetracker)
 
 try % begin try for experiment after init exp
 
+tGameStart = GetSecs;
+if ~demoMode
+    eyetracker.start_recording();
+    eyetracker.get_gaze_data();   % flush residual samples
+end
+
+blockGazeData = struct( ...       % one growing struct for ALL of p2
+    'DeviceTimeStamp', {}, ...
+    'GazeX',           {}, ...
+    'GazeY',           {}, ...
+    'PupilDiaL',       {}, ...
+    'PupilDiaR',       {} );
+
     window     = expParams.screen.window;
     windowRect = expParams.screen.windowRect;
     cx = expParams.screen.center(1);
@@ -156,7 +169,7 @@ try % begin try for experiment after init exp
         Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
 
         % draw fixation ontop of tableau
-        drawFixation(window, windowRect, expParams);
+        drawFixation(window, expParams.screen.windowRect, expParams);
 
         % show tableau and fixation
         fixationOnset = Screen('Flip', window);
@@ -164,6 +177,7 @@ try % begin try for experiment after init exp
         % pause script, leave fixation on screen
         iti = expParams.p2.options.itiFcn();
         WaitSecs(iti);
+        flushGaze();
 
         % 2. Stimulus Presentation (Tableau + Piece)
 
@@ -182,7 +196,7 @@ try % begin try for experiment after init exp
 
         % tableau and piece are visible. Pause script for stimulus presentation duration
         WaitSecs(expParams.p2.options.stimulusDuration);
-
+        flushGaze();
         % 3. Inter-Trial Interval (ITI) (Tableau + Fixation)
 
         % prepare ITI on buffer, draw constant tableau for phase
@@ -195,10 +209,8 @@ try % begin try for experiment after init exp
         Screen('Flip', window);
 
         % 4. Data Collection (during ITI)
-        if ~demoMode
-            gazeData = eyetracker.get_gaze_data();
-            if ~isempty(gazeData), blockGazeData = [blockGazeData; gazeData]; end
-        end
+    
+    
 
         % Log BEHAVIORAL data
         blockData(i).block = trialInfo.blockNum;
@@ -216,22 +228,35 @@ try % begin try for experiment after init exp
 
         % FIXME TIMING BUG 
         WaitSecs(0.7 + rand * 0.4); % Remainder of ITI
-
+        % append recent gazeData 
         if ~demoMode
-            pupilFileName = fullfile(expParams.subjPaths.eyeDir, sprintf('%s_p2_block%02d_pupilDat.mat', subjID, currentBlock));
-            processedGazeData = preprocessGazeData(struct('gazeData', blockGazeData));
-            save(pupilFileName, 'processedGazeData', '-v7.3');
-            fprintf('p2: Saved pupillometry data for final block %d.\n', currentBlock);
-        end
+            flushGaze();
+        end 
+        
+
+    end % end of stimulus sequence 
 
         %% --- Save BEHAVIORAL data at the very end ---
         fprintf('p2: Section complete. Saving behavioral data...\n');
         expParams.p2.stimulusSequence = stimulusSequence;
         expParams.p2.options.sectionDoneFlag = 1;
 
-    end
     % save leftover data at the very end
     saveDat('p2', subjID, blockData, expParams, demoMode);
+
+    if ~demoMode
+    flushGaze();                     % grab trailing samples
+    eyetracker.stop_recording();
+    tGameEnd = GetSecs;
+
+    lossL = mean([blockGazeData.PupilDiaL] == 0);
+    lossR = mean([blockGazeData.PupilDiaR] == 0);
+
+    gazeFile = fullfile(expParams.subjPaths.eyeDir, ...
+        sprintf('%s_p2_gazeData.mat', subjID));
+    save(gazeFile, 'blockGazeData', 'tGameStart', 'tGameEnd', 'lossL', 'lossR');
+    end
+
 catch ME
     fprintf(2, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
     fprintf(2, 'ERROR IN SCRIPT: p2.m\n');
@@ -240,4 +265,12 @@ catch ME
     fprintf(2, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
     rethrow(ME);
 end % try end
+
+function flushGaze()
+    if demoMode, return; end
+    newSamp = eyetracker.get_gaze_data();
+    if ~isempty(newSamp)
+        blockGazeData(end+1:end+numel(newSamp)) = newSamp;
+    end
+end
 end % function end

@@ -99,38 +99,7 @@ function humanTetrisWrapper(subjID, demoMode)
         %     calibrateTobii(window, windowRect, eyetracker, expParams);
         %     fprintf('Recalibration complete.\n');
         % end
-        % 
-        % % 4afc 
-        % p4(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
-        % 
-        % % break 3
-        % betweenSectionBreakScreen(window, expParams);
-        %  % FIXME ''
-        % if ~demoMode && ~isempty(eyetracker) % Check eyetracker exists and is not empty
-        %     fprintf('Recalibrating eye tracker before Part 5...\n');
-        %     DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
-        %     Screen('Flip', window);
-        %     KbName('UnifyKeyNames');
-        %     spaceKey = KbName('SPACE');
-        %     KbWait(-1, 2); % Wait for key release before proceeding
-        %     while true % wait space
-        %         [~, ~, keyCode] = KbCheck;
-        %         if keyCode(spaceKey)
-        %             break;
-        %         end
-        %     end
-        %     calibrateTobii(window, windowRect, eyetracker, expParams);
-        %     fprintf('Recalibration complete.\n');
-        % end
-        
-
-        %{ 
-ERROR TO REVISIT
-
-p5: All games complete. Saving event data...
-Warning: Could not save demo log as .csv, possibly due to inconsistent struct fields. Error: Input structure must be a scalar structure, or a structure array
-with one column or one row. 
-        %}
+         
     catch ME
 
         % clean up ptb when error 
@@ -139,7 +108,7 @@ with one column or one row.
         Priority(0); 
         Screen('CloseAll');
         % try to clear port if crash 
-      %  io64(ioObj, address, 0);
+        %  io64(ioObj, address, 0);
 
 
         % commented out below code on 6/19. Seems pointless. There is no
@@ -196,6 +165,7 @@ with one column or one row.
     sca;
     ShowCursor;
     Priority(0);
+    Screen('CloseAll')
 end
 
 
