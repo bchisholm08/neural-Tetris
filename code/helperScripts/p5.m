@@ -1,5 +1,8 @@
 function p5(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker)
 try
+    % initialize a master eventLog for the whole section
+    eventLog = struct('timestamp',{},'eventType',{},'val1',{},'val2',{}); 
+
     if demoMode
         ShowCursor;
     end
@@ -30,7 +33,8 @@ try
     %% PHASE 1 - play for 10 minutes
     while (GetSecs - t0) < phaseOne % for game intro time
         expParams.p5.gameplayCount = gameCount;
-        [playFile, newInfo] = playOneTetrisGame(expParams);
+        [playFile, newInfo, gameLog] = playOneTetrisGame(expParams);
+        eventLog = [eventLog; gameLog(:)];          % append that game's events
 
         if demoMode
             disp(class(newInfo));   % should print "struct"
@@ -66,9 +70,9 @@ try
 
         if rand < 0.5 % rand (0--1)
             expParams.p5.gameplayCount = gameCount;
-            [filePlayMain, newInfo] = playOneTetrisGame(expParams);
-        
-            snapshotFiles{end+1}    = filePlayMain;
+            [playFile, newInfo, gameLog] = playOneTetrisGame(expParams);
+            eventLog = [eventLog; gameLog(:)];            % append that game's events
+            snapshotFiles{end+1}    = playFile;     % use playFile, not filePlayMain
             activSessionInfo(end+1) = newInfo;
         
             gameCount = gameCount + 1;
@@ -93,7 +97,7 @@ try
     expParams.p5.gameplayCount = gameCount - 1;
     expParams.p5.sessionInfo = activSessionInfo;
     saveDat('p5_events', subjID, eventLog, expParams, demoMode);
-
+    expParams.p5.options.sectionDoneFlag = 1;
 catch ME
     fprintf(2, 'ERROR IN p5 at %s:%d -- %s\n', ME.stack(1).name, ME.stack(1).line, ME.message);
     rethrow(ME);

@@ -1,4 +1,4 @@
-function [snapshotFile, activInfo] = playOneTetrisGame(expParams)
+function [snapshotFile, activInfo, eventLog] = playOneTetrisGame(expParams)
 
 % 'hot fix' info to pass around 
 activInfo = struct( ...
@@ -60,7 +60,7 @@ S.pieceColors = {[1 0 0], [0 1 0], [0 0 1], [1 1 0], [1 0 1], [0 1 1], [1 0.5 0]
 %     [184 185 186 194],[194 195 185 186],[184 195 185 196], [185 186 195 196]};
 
 S.pointsVector = [100 300 500 800]; % reg tetris points for 1, 2s, 3, or 4 lines cleared
-S.levelFactor = .25;  % speed factor per level (omit? Ask JP) ORIGINAL GAME IS .625
+S.levelFactor = .25;  % speed factor per level (omit? Ask JP) ORIGINAL GAME IS .625. Curious if changing to 0 would work 
 
 S.linesForLevelUp = 10; % originally 5 lines. Probably dropping. See above
 
@@ -172,9 +172,11 @@ while ~S.gameOver
 
     % 5) clear the port
     % WaitSecs(0.002);
+    if ~demoMode
     if  ~isempty(ioObj)
         io64(ioObj, address, 0);
-    end
+    
+    end;end
 
     % debug print
     if demoMode
@@ -242,9 +244,10 @@ WaitSecs(4);
             trigVal = p5_triggers(eventType);
 
             % ALWAYS send to the port, demoMode or not
+            if ~demoMode
             if ~isempty(ioObj)
                 io64(ioObj, address, trigVal);
-            end
+            end;end
 
             % 3) Print for debugging
             fprintf('[LOGGED] Event: %-15s → %3d @ %.4f\n', ...
@@ -511,7 +514,7 @@ if isempty(activInfo)
     );
 else
     % if somehow you have more, return only the last one
-    activInfo = activInfo(end);
+    % % %activInfo = activInfo(end);
 end
 
 end % function end

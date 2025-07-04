@@ -52,14 +52,15 @@ for k = 1:length(snapshots) % for length of snapshots...(not frames--as a matter
             end
         end
 
-    % Send EEG trigger on replay
+% send triggers during replay 
     replayTrig = snapshots(k).eegTrigs;
-    if ~isnan(replayTrig) && ~isempty(ioObj)
-        % 1) send to port
+    if ~isempty(replayTrig) && ~isnan(replayTrig)
+        if ~demoMode && ~isempty(ioObj)
+        % send to port
         io64(ioObj, address, replayTrig + 100);
-
-        % QA pring for debugging 
-            fprintf('[REPLAY] Trigger → %3d @ %.4f\n', replayTrig, GetSecs); % triggers have 100 added 
+        end 
+        % trig debugging 
+        fprintf('[REPLAY] Trigger → %3d @ %.4f\n', replayTrig, GetSecs); % triggers have 100 added 
         
     end
 
@@ -67,6 +68,9 @@ for k = 1:length(snapshots) % for length of snapshots...(not frames--as a matter
     Screen('Flip', window);
 
     % Wait for frame delay (hint as to sampling rate and FPS we actually capture) 
+
+    % FIX ME THIS TIMING IS BAD!!!!!!!!!!!!!!!!!!!!!!! JITTER B/C OF LARGE
+    % FILE OR BAD CODING?!?!?!?! 
     WaitSecs(delays(k));
 end
 end

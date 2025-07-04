@@ -209,8 +209,8 @@ end
 % flags
 expParams.p1.options.sectionDoneFlag = 0;
 expParams.p2.options.sectionDoneFlag = 0;
-expParams.p4.options.sectionDoneFlag = 0;
-
+% % % expParams.p4.options.sectionDoneFlag = 0;
+expParams.p5.options.sectionDoneFlag = 0;
 
 if demoMode
     Screen('Preference', 'SkipSyncTests', 2);  % loose 
@@ -224,6 +224,7 @@ PsychDefaultSetup(2); % general PTB set up, no sync test
 screens = Screen('Screens');
 screenNumber = max(screens);
 [window, windowRect] = PsychImaging('OpenWindow', screenNumber, expParams.colors.background);
+
 % save these into expParams below
 [screenXpixels, screenYpixels] = Screen('WindowSize', window);
 [xCenter, yCenter] = RectCenter(windowRect);
@@ -271,10 +272,9 @@ if demoMode
     expParams.p2.options.stimulusDuration = 0.1;
     expParams.p2.options.fixationDuration = 0.5; 
     % p 4 
-    expParams.p4.options.stimulusDuration = 0.1;
-    expParams.p4.options.fixationDuration = 0.5; 
-    expParams.p4.options.respTimeout = 1.5; % seconds, how long the subj has to respond. NOTE: Look closely @ how iti & flip are calculated, and if this 'remainder' or 'idle
-    %  time we give is actually how long we think it is 
+    % % % expParams.p4.options.stimulusDuration = 0.1;
+    % % % expParams.p4.options.fixationDuration = 0.5; 
+    % % % expParams.p4.options.respTimeout = 1.5; % seconds, how long the subj has to respond. NOTE: Look closely @ how iti & flip are calculated, and if this 'remainder' or 'idle
 
     % demoMode blocks / trials
     expParams.p1.options.blocks = 4;
@@ -285,13 +285,13 @@ if demoMode
     expParams.p2.options.trialsPerBlock = 6; %  MUST BE A MULTIPLE OF 6 FOR EXP TO WORK
     expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
 
-    expParams.p4.options.blocks = 7;
-    expParams.p4.options.trialsPerBlock = 18; % get more presentation in demoMode
-    expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
+    % % % expParams.p4.options.blocks = 7;
+    % % % expParams.p4.options.trialsPerBlock = 18; % get more presentation in demoMode
+    % % % expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
 
     % in seconds 
-    expParams.p5.options.totalTime = 3600; % total time, 60 minutes 
-    expParams.p5.options.phaseOne = 60; % force 10 min of play before playbacks ORIGINALLY 600 (cut for testing)
+    expParams.p5.options.totalTime = 300; % total time, 10 min demo 
+    expParams.p5.options.phaseOne = 150; % force 5 min of play before playbacks ORIGINALLY 600 (cut for testing)
     % other p5 options 
     expParams.p5.saveBoardSnapShot = 1; % manual setting, will save boardsnap shots to designated folder 
     expParams.p5.gameplayCount = 0;
@@ -316,9 +316,9 @@ else
     % p2 
     expParams.p2.options.stimulusDuration = 0.1;
     expParams.p2.options.fixationDuration = 0.5; 
-    % p4 
-    expParams.p4.options.fixationDuration = 0.5; 
-    expParams.p4.options.respTimeout = 1.75; % seconds, how long the subj has to respond before timeout 
+    % % % % p4 
+    % % % expParams.p4.options.fixationDuration = 0.5; 
+    % % % expParams.p4.options.respTimeout = 1.75; % seconds, how long the subj has to respond before timeout 
 
     %% init experiment tobii
     try
@@ -380,28 +380,28 @@ else
     % p1, 490 total trials
 
     expParams.p2.options.blocks = 7;
-    expParams.p2.options.trialsPerBlock = 210; %  MUST BE A MULTIPLE OF 3 FOR EXP TO WORK (fit / partial fit / does not fit)
+    expParams.p2.options.trialsPerBlock = 210; %  MUST BE A MULTIPLE OF 3 FOR EXP TO WORK; 3 conditions (fit / partial fit / does not fit)
     expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
     % p2, 1470 total trials
 
-    expParams.p4.options.blocks = 7;
-    expParams.p4.options.trialsPerBlock = 50;
-    expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
-    % p4, 350 total trials
+    % % % expParams.p4.options.blocks = 7;
+    % % % expParams.p4.options.trialsPerBlock = 50;
+    % % % expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
+    % % % % p4, 350 total trials
 
     expParams.p5.options.totalTime = 5400; % 90 min        % old 3600; % total time, 60 minutes 
-    expParams.p5.options.phaseOne = 600; % 10 min initial playtime 
-    % p5, 90 min total. (10 min forced play to begin, 80 min 50/50
-    % play/watch after that time
+    expParams.p5.options.phaseOne = 600; % 10 min initial playtime to accumulate gameplay  
+    % p5, 90 min total. (10 min forced play to begin, 80 min 50/50 play/watch after that time
 
     % other p5 options 
     expParams.p5.saveBoardSnapShot = 1; % manual setting, will save boardsnap shots to designated folder 
     expParams.p5.gameplayCount = 0;
     expParams.p5.replayCount = [];
+    expParams.p5.blockSize = 30; % global 
 
 end % end demoMode/realMode difference  handling
 
-% just a silly string
+% a silly string
 if expParams.demoMode
     sillyStringBoi = "DEMO MODE";
 else

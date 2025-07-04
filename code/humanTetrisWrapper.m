@@ -1,4 +1,3 @@
-
 %-------------------------------------------------------
 % Author: Brady M. Chisholm
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
@@ -138,6 +137,10 @@ with one column or one row.
         sca; 
         ShowCursor;
         Priority(0); 
+        Screen('CloseAll');
+        % try to clear port if crash 
+      %  io64(ioObj, address, 0);
+
 
         % commented out below code on 6/19. Seems pointless. There is no
         % logical reason to check if EEG port and Tobii work if we've
