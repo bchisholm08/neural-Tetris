@@ -2,7 +2,9 @@ function playBackGame(snapshotFile, expParams)
 
 window = expParams.screen.window;
 windowRect = expParams.screen.windowRect;
-
+demoMode  = expParams.demoMode;
+ioObj     = expParams.ioObj;
+address   = expParams.address;
 % FIXME add in expParam window/screen vars
     ShowCursor; % for debugging......
 % Load snapshot struct from .mat
@@ -36,7 +38,7 @@ for k = 1:length(snapshots) % for length of snapshots...(not frames--as a matter
     Screen('FrameRect', window, [255 255 255], boardRect, 5);
        for r = 1:boardHeight
             for c = 1:boardWidth
-                pieceID = board(c, r); % r,c
+                pieceID = board(r,c); % r,c
                 if pieceID > 0
                     x = boardX + (c-1)*blockSize;
                     y = boardY + (boardHeight - r)*blockSize;
@@ -50,15 +52,15 @@ for k = 1:length(snapshots) % for length of snapshots...(not frames--as a matter
             end
         end
 
-    % Send EEG trigger if value is non-NaN
+    % Send EEG trigger on replay
     replayTrig = snapshots(k).eegTrigs;
-    
     if ~isnan(replayTrig) && ~isempty(ioObj)
-        try
-            io64(ioObj, address, replayTrig + 100);  % Add 100 to distinguish replay triggers
-        catch
-            warning('Failed to send EEG trigger %d at frame %d', replayTrig, k);
-        end
+        % 1) send to port
+        io64(ioObj, address, replayTrig + 100);
+
+        % QA pring for debugging 
+            fprintf('[REPLAY] Trigger → %3d @ %.4f\n', replayTrig, GetSecs); % triggers have 100 added 
+        
     end
 
     % add EEG triggers @ flip? 

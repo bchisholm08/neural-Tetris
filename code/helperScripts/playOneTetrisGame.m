@@ -1,4 +1,12 @@
 function [snapshotFile, activInfo] = playOneTetrisGame(expParams)
+
+% 'hot fix' info to pass around 
+activInfo = struct( ...
+    'gameNum',       {}, ...
+    'fileName',      {}, ...
+    'usedForReplay', {}  ...
+);
+
 subjID = expParams.subjID;
 demoMode = expParams.demoMode;
 window = expParams.screen.window;
@@ -6,14 +14,6 @@ windowRect = expParams.screen.windowRect;
 ioObj = expParams.ioObj;
 address = expParams.address;
 eyetracker = expParams.eyeTracker;
-
-% activeInfo is going to be passed between playOneTetrisGame and
-% playBackGame. It's sole purpose is to keep track of which games we use as
-% a replay, and to ensure we don't use them again
-% ADD IN L8R
-activInfo = struct('gameNum',       {}, ...
-    'fileName',      {}, ...
-    'usedForReplay', {});
 
 % get shapes and textures
 pieces = getTetrino(expParams);
@@ -23,17 +23,21 @@ boardW = 10;
 S = struct(); % to store game state
 
 % use two matrix design... 
-S.lockedMatrix  = zeros(boardH, boardW, 'uint8');   % blocks that have "landed"
-S.currentPiece  = [];   % linear indices of the 4 falling blocks
-S.currentPieceID= 0;    % which tetromino type is falling
-
+S.lockedMatrix  = zeros(boardH, boardW, 'uint8');   % landed blocks 
+S.currentPiece  = [];   % linear indices falling blocks
+S.currentPieceID= 0;    % which piece type 
 
 % begin pupillometry collection for game block FIXME WHERE DOES THIS
 % END COLLECTION?!?!
 if ~demoMode
-    eyetracker.get_gaze_data();  % begin / open eyetracker 
+    % make sure to point this to eye dir at save 
+    eyetracker.get_gaze_data();  % begin / open eyetracker CLOSE?!?! 
+    fprintf(['\n=======================\n\n' ...
+            'PUPILLOMETRY DATA INIT COLLECTION SUCCESSFUL \n\n' ...
+            '\n=======================\n\n'])
 end
 
+% blockGazeData filled from eyetracker. input
 blockGazeData = struct('DeviceTimeStamp',{}, 'Left',{}, 'Right',{}, 'Pupil',{});
 
 p5_triggers = containers.Map( ...
@@ -58,9 +62,9 @@ S.pieceColors = {[1 0 0], [0 1 0], [0 0 1], [1 1 0], [1 0 1], [0 1 1], [1 0.5 0]
 S.pointsVector = [100 300 500 800]; % reg tetris points for 1, 2s, 3, or 4 lines cleared
 S.levelFactor = .25;  % speed factor per level (omit? Ask JP) ORIGINAL GAME IS .625
 
-S.linesForLevelUp = 5; % change level every 5 lines. Probably dropping this. See above
+S.linesForLevelUp = 10; % originally 5 lines. Probably dropping. See above
 
-% init special logs
+% init special logs. good reference. save to misc dir
 eventLog = struct('timestamp', {}, 'eventType', {}, 'val1', {}, 'val2', {});
 
 % lastEEGTrig = NaN; % overwrite?
@@ -150,15 +154,21 @@ while ~S.gameOver
         lastDropTime = GetSecs;
     end
 
-    % 4) draw + snapshot
+    
+    % 4) draw + snapshot of full visible board (locked + falling)
     drawGameState();
     Screen('Flip', window);
-    frameStamp = GetSecs; % which one of these do we want?
+    frameStamp   = GetSecs;
+
+    % Build exactly what was on screen:
+    visibleBoard = S.lockedMatrix;                   % all the settled blocks…
+    visibleBoard(S.currentPiece) = S.currentPieceID; % …plus the moving piece
+
     boardSnapshot(end+1) = struct( ...
         'timestamp', frameStamp, ...
-        'board',     S.lockedMatrix, ...
+        'board',     visibleBoard, ...
         'eegTrigs',  currentEEGTrig ...
-        );
+    );
 
     % 5) clear the port
     % WaitSecs(0.002);
@@ -175,18 +185,23 @@ end
 % end of game; so save
 
 lastEEGTrig = logEvent('game_over', S.currentScore, S.currentLines);
-snapshotFile = fullfile(expParams.subjPaths.boardData, sprintf('%s_p5_boardSnapshot_g#%02d.mat', subjID, expParams.p5.gameplayCount));
+snapshotFile = fullfile(expParams.subjPaths.boardData, sprintf('%s_p5_boardSnapshot_g%02d.mat', subjID, expParams.p5.gameplayCount));
 
 visibleBoard = S.lockedMatrix;
 visibleBoard(S.currentPiece) = S.currentPieceID;
-boardSnapshot(end+1) = struct( ...
-    'timestamp', GetSecs, ...
-    'board',     visibleBoard, ...
-    'eegTrigs',  currentEEGTrig ...
-);
+boardSnapshot(end+1) = struct('timestamp', GetSecs, ...
+                               'board',     visibleBoard, ...
+                                'eegTrigs',  currentEEGTrig);
 
 fprintf('Saved board snapshot for game %d.\n\n\n', expParams.p5.gameplayCount);
 save(snapshotFile, 'boardSnapshot', 'eventLog', '-v7.3');
+
+% record this game so the wrapper can log it
+activInfo(end+1) = struct( ...
+'gameNum',       expParams.p5.gameplayCount, ...
+'fileName',      snapshotFile,               ...
+'usedForReplay', false                      ...
+);
 
 % save pupillometry data
 if ~demoMode
@@ -196,18 +211,13 @@ if ~demoMode
     fprintf('p5: Saved pupillometry data for game %d.\n', expParams.p5.gameplayCount);
 end
 
-% save to special log
-activInfo(end+1) = struct( ...
-    'gameNum', expParams.p5.gameplayCount, ...
-    'fileName', snapshotFile, ...
-    'usedForReplay', false ...
-    );
-
 % send game over
 DrawFormattedText(window, sprintf('Game Over!\n\nFinal Score: %d\n\nPlease wait.....', S.currentScore), 'center', 'center', [255 0 0]);
 Screen('Flip', window);
 % dwell (FIXME this should be an expParams rule...)
 WaitSecs(4);
+
+
 
 %========================================================
 %======================HELPER SCRIPTS====================
@@ -491,5 +501,17 @@ end
 
 
 %===================================
+% HOTFIX 
+if isempty(activInfo)
+    % (should never happen, but just in case)
+    activInfo = struct( ...
+        'gameNum',       expParams.p5.gameplayCount, ...
+        'fileName',      snapshotFile,            ...
+        'usedForReplay', false                   ...
+    );
+else
+    % if somehow you have more, return only the last one
+    activInfo = activInfo(end);
+end
 
 end % function end

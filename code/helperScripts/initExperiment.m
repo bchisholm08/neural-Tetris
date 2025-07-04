@@ -369,11 +369,9 @@ else
         end
     catch eegME
         error('EEG trigger system (io64) initialization failed: %s\nAttempting to continue without EEG triggers.', eegME.message);
-        ioObj = []; % Ensure ioObj is empty if setup fails
+        ioObj = []; % empty ioObj if setup fails
         address = [];
     end
-
-    
 
     %% real exp blocks and trials 
     expParams.p1.options.blocks = 7;
@@ -391,26 +389,25 @@ else
     expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
     % p4, 350 total trials
 
-    % this will be changed to TIME allowed. Once completing the other
-    % sections of the experiment, some amount of our three hours remains,
-    % and we'll just use all of that for
-    expParams.p5.options.totalTime = 3600; % total time, 60 minutes 
+    expParams.p5.options.totalTime = 5400; % 90 min        % old 3600; % total time, 60 minutes 
     expParams.p5.options.phaseOne = 600; % 10 min initial playtime 
+    % p5, 90 min total. (10 min forced play to begin, 80 min 50/50
+    % play/watch after that time
 
     % other p5 options 
     expParams.p5.saveBoardSnapShot = 1; % manual setting, will save boardsnap shots to designated folder 
     expParams.p5.gameplayCount = 0;
     expParams.p5.replayCount = [];
 
-end % end demoMode/realMode block handling
+end % end demoMode/realMode difference  handling
 
 % just a silly string
 if expParams.demoMode
     sillyStringBoi = "DEMO MODE";
 else
-    sillyStringBoi = "REAL DEAL DATA COLLECTION";
+    sillyStringBoi = "REAL ~~DEAL~~ DATA COLLECTION";
 end
-fprintf(['=============================\n' ...
-    'initExperiment successfully initialized experiment in %s\n' ...
-    '=============================\n'], sillyStringBoi); % this is stupid but I'm keeping it
+fprintf(['\n\n=============================\n' ...
+    'initExperiment successfully initialized experiment in %s' ...
+    '\n\n=============================\n'], sillyStringBoi); % this is stupid but I'm keeping it
 end
