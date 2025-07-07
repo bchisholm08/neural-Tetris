@@ -53,15 +53,13 @@ itiFcn = @() 1.0 + rand * 0.2;  % ITI between 1000–1200 ms
 expParams.p1.options.itiFcn = itiFcn;
 expParams.p2.options.itiFcn = itiFcn;
 expParams.p4.options.itiFcn = itiFcn;
-% now can call code chunk below to get ITI based on function handle instead
-% of having to type it in each PX() script... 
 %{
+call code chunk below to get ITI based on function handle, versus typing
+
 itiDuration = expParams.p<X>.options.itiFcn();  % Get ITI
 WaitSecs(itiDuration);            % Wait duration
 %}
 
-% expParams.initExperimentTimestamp = datestr(now, 'yyyymmdd_HHMMSS'); %
-% timestamp will be useful for P5... hopefully 
 expParams.rule.initExperiment_expMasterBeginTime = datetime('now');
 expParams.rule.initExperiment_expMasterBeginTime.Format = 'HH:mm:ss_M/d/yy';
 
@@ -288,10 +286,18 @@ if demoMode
     % % % expParams.p4.options.blocks = 7;
     % % % expParams.p4.options.trialsPerBlock = 18; % get more presentation in demoMode
     % % % expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
+    
+    specialSpeedBoi = 1; % testing takes a long time, this should help 
 
+    if specialSpeedBoi
+    expParams.p5.options.totalTime = 240; % 4 MIN TOTAL
+    expParams.p5.options.phaseOne = 120; % 2 MIN OF PLAYING 
+    else
     % in seconds 
-    expParams.p5.options.totalTime = 300; % total time, 10 min demo 
+    expParams.p5.options.totalTime = 300; % 5 min 
     expParams.p5.options.phaseOne = 150; % force 5 min of play before playbacks ORIGINALLY 600 (cut for testing)
+    end 
+
     % other p5 options 
     expParams.p5.saveBoardSnapShot = 1; % manual setting, will save boardsnap shots to designated folder 
     expParams.p5.gameplayCount = 0;
@@ -321,57 +327,69 @@ else
     % % % expParams.p4.options.respTimeout = 1.75; % seconds, how long the subj has to respond before timeout 
 
     %% init experiment tobii
-    try
-        fprintf('Initializing Tobii Eye Tracker...\n');
-        Tobii = EyeTrackingOperations();
-        eyetracker_address = 'tet-tcp://169.254.6.40'; % tobii address
-        fprintf('Attempting connection to Tobii at %s...\n', eyetracker_address);
-        eyetracker = Tobii.get_eyetracker(eyetracker_address);
+try
+    fprintf('Beginning Tobii Initialization...\n');
+    Tobii = EyeTrackingOperations();
 
-        if isa(eyetracker, 'EyeTracker')
-            fprintf('Successfully connected to Tobii Eye Tracker:\n');
-            disp(['  Address:          ' eyetracker.Address]);
-            disp(['  Name:             ' eyetracker.Name]);
-            disp(['  Serial Number:    ' eyetracker.SerialNumber]);
-            disp(['  Model:            ' eyetracker.Model]);
-            disp(['  Firmware Version: ' eyetracker.FirmwareVersion]);
-            disp(['  Runtime Version:  ' eyetracker.RuntimeVersion]);
+    eyetracker_address = 'tet-tcp://169.254.6.40';
+    eyetracker = Tobii.get_eyetracker(eyetracker_address);
 
-            % cal tobii (in REAL exp mode this acts as our initial
-            % calibration for the participant. Need to decide about
-            % including a gaze fixation or something to help subjects
-            % throughout the experiment...?
-
-            expParams.Tobii_info.screen_pixels = [expParams.screen.width, expParams.screen.height];
-            fprintf('Beginning Initial Tobii Calibration...\n');
-            % this save below is incorrect--should go to subject database
-            expParams.Tobii_info.calResult = calibrateTobii(window, windowRect, eyetracker, expParams); % Pass expParams
-            % if calibrationData is empty or something funkywunky happens
-            % we need to add a CHECK here for that. 
-        else
-            error('Failed to get a valid EyeTracker object.');
-        end
-    catch tobiiME
-        error('Tobii Eye Tracker initialization failed: %s', tobiiME.message);
+    % Confirm eyetracker is valid
+    if isempty(eyetracker) || ~isprop(eyetracker, 'SerialNumber')
+        error('Tobii tracker handle invalid or not connected.');
     end
+
+    % Print tracker info
+    fprintf('Connected to Tobii Eye Tracker:\n');
+    disp(['  Address:          ' eyetracker.Address]);
+    disp(['  Name:             ' eyetracker.Name]);
+    disp(['  Serial Number:    ' eyetracker.SerialNumber]);
+    disp(['  Model:            ' eyetracker.Model]);
+    disp(['  Firmware Version: ' eyetracker.FirmwareVersion]);
+    disp(['  Runtime Version:  ' eyetracker.RuntimeVersion]);
+
+
+    % Screen size info for calibration
+    expParams.Tobii_info.screen_pixels = [expParams.screen.width, expParams.screen.height];
+
+    % Try calibration
+    fprintf('Beginning Initial Tobii Calibration...\n');
+    try
+        expParams.Tobii_info.calResult = calibrateTobii(window, windowRect, eyetracker, expParams);
+    catch calErr
+        warning('Calibration failed: %s', calErr.message);
+        expParams.Tobii_info.calResult = [];
+    end
+
+catch tobiiME
+    error('Tobii Eye Tracker initialization failed: %s', tobiiME.message);
+end
+
 
     %% init experiment EEG
-    try
-        fprintf('Initializing EEG trigger system (io64)...\n');
-        ioObj = io64;
-        status = io64(ioObj); % eeg interface
-        if status == 0 % 0 = good io64 status
-            address = hex2dec('3FF8'); % CATSS lab port address LPT3
-            io64(ioObj, address, 0); % Send a reset trigger (0)
-            fprintf('EEG trigger system initialized successfully. Port: %s, Address: %s\n', 'LPT1 equivalent', dec2hex(address));
-        else
-            error('Failed to initialize LPT port via io64. Status: %d', status);
+        try
+            fprintf('Initializing EEG trigger system (io64)...\n');
+            ioObj = io64;
+            status = io64(ioObj); % eeg interface
+            if status == 0 % 0 = good io64 status
+                address = hex2dec('3FF8'); % CATSS lab port address LPT3
+                io64(ioObj, address, 0); % Send a reset trigger (0)
+                fprintf('EEG trigger system initialized successfully. Port: %s, Address: %s\n', 'LPT1 equivalent', dec2hex(address));
+                expParams.ioObj = ioObj;
+            else
+                error('Failed to initialize LPT port via io64. Status: %d', status);
+            end
+        catch eegME
+            warning('EEG trigger system (io64) initialization failed: %s\nAttempting to continue without EEG triggers.', eegME.message);
+            ioObj = []; % empty ioObj if setup fails
+            address = [];
         end
-    catch eegME
-        error('EEG trigger system (io64) initialization failed: %s\nAttempting to continue without EEG triggers.', eegME.message);
-        ioObj = []; % empty ioObj if setup fails
-        address = [];
-    end
+
+    
+% playOneGame hotfix from struct error
+expParams.ioObj = ioObj;
+expParams.address = address;
+expParams.eyeTracker =  eyetracker;
 
     %% real exp trials and blocks 
     expParams.p1.options.blocks = 7;
@@ -399,15 +417,16 @@ else
     expParams.p5.replayCount = [];
     expParams.p5.blockSize = 30; % global 
 
-end % end demoMode/realMode difference  handling
+end %end demoMode/realMode difference  handling
 
 % a silly string
 if expParams.demoMode
     sillyStringBoi = "DEMO MODE";
 else
     sillyStringBoi = "REAL ~~DEAL~~ DATA COLLECTION";
+
 end
-fprintf(['\n\n=============================\n' ...
+    fprintf(['\n\n=============================\n' ...
     'initExperiment successfully initialized experiment in %s' ...
     '\n\n=============================\n'], sillyStringBoi);
 end

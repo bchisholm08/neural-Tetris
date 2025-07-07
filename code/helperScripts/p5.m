@@ -1,7 +1,8 @@
 function p5(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker)
 try
     % init event log 
-    eventLog = struct('timestamp',{},'eventType',{},'val1',{},'val2',{}); 
+    eventLog = struct('timestamp',{},'systemTS',{},'eventType',{},'val1',{},'val2',{});
+
 
     if demoMode
         ShowCursor;
@@ -15,7 +16,7 @@ try
     totalTime    = expParams.p5.options.totalTime;
     snapshotFiles = {};                      % collect all played games in this 
 
-tmp = struct('gameNum',0,'boardFile','','gazeFile','','usedForReplay',false);
+    tmp = struct('gameNum',0,'boardFile','','gazeFile','','usedForReplay',false);
 
     % collapse
     activSessionInfo = tmp([]); 
@@ -101,3 +102,4 @@ catch ME
     rethrow(ME);
 end % try end
 end % p5 function end
+   

@@ -3,8 +3,7 @@ function [snapshotFile, activInfo, eventLog] = playOneTetrisGame(expParams)
 try
     
     
-    gameIdx = expParams.p5.gameplayCount;   
-
+gameIdx = expParams.p5.gameplayCount;   
 
 subjID = expParams.subjID;
 demoMode = expParams.demoMode;
@@ -16,6 +15,7 @@ eyetracker = expParams.eyeTracker;
 
 gazeFile = fullfile(expParams.subjPaths.eyeDir, ...
             sprintf('%s_game%03d_gaze.mat', subjID, gameIdx));
+
 activInfo = struct('gameNum',{},'boardFile',{},'gazeFile',{},'usedForReplay',{});
 % get shapes and textures
 pieces = getTetrino(expParams);
@@ -28,15 +28,6 @@ S = struct(); % to store game state
 S.lockedMatrix  = zeros(boardH, boardW, 'uint8');   % landed blocks 
 S.currentPiece  = [];   % linear indices falling blocks
 S.currentPieceID= 0;    % which piece type 
-
-% blockGazeData filled from eyetracker. input
-blockGazeData = struct( ...
-    'DeviceTimeStamp', {}, ...  % Tobii clock (use your field names)
-    'GazeX',           {}, ...  % averaged X in px or deg
-    'GazeY',           {}, ...  % averaged Y
-    'PupilDiaL',       {}, ...  % left eye pupil diam
-    'PupilDiaR',       {}  ...  % right eye pupil diam
-);
 
 p5_triggers = containers.Map( ...
     {'game_start','game_over','piece_spawn','piece_lock', ...
@@ -63,10 +54,14 @@ S.levelFactor = .25;  % speed factor per level (omit? Ask JP) ORIGINAL GAME IS .
 S.linesForLevelUp = 10; % originally 5 lines. Probably dropping. See above
 
 % init special logs. good reference. save to misc dir
-eventLog = struct('timestamp', {}, 'eventType', {}, 'val1', {}, 'val2', {});
+eventLog = struct( ...
+    'timestamp',  {}, ...  % MATLAB clock (check if this equals GetSecs() call) 
+    'systemTS',   {}, ...  % Tobii SDK clock (different from GetSecs() ) 
+    'eventType',  {}, ...
+    'val1',       {}, ...
+    'val2',       {}  ...
+);
 
-% lastEEGTrig = NaN; % overwrite?
-% currentEEGTrig = NaN;
 
 boardSnapshot = struct('timestamp', {}, 'board', {}, 'eegTrigs', {});
 
@@ -81,10 +76,34 @@ S.currentPiece = []; % indices of current falling piece
 S.currentPieceID = 0;
 S.nextPieceID = ceil(rand*7); % pre-determine first piece randomly
 
+% begin eye tings
+% — a) init gaze buffer with both timestamps —
+blockGazeData = struct( ...
+'SystemTimeStamp',{}, ...  % Tobii SDK clock
+'DeviceTimeStamp',{}, ...  % Tobii device clock
+'GazeX',           {}, ...
+'GazeY',           {}, ...
+'PupilDiaL',       {}, ...
+'PupilDiaR',       {} );
+    tRecordingStart = NaN;
+    tRecordingEnd   = NaN;
+
 if ~demoMode
-tGEStart = GetSecs;
-eyetracker.start_recording();   % open recording, capture during countdown
-end 
+    % — b) subscribe & flush any errors —
+    subResult = eyetracker.get_gaze_data();
+    if isa(subResult,'StreamError')
+        warning('Tobii subscription error: %s', subResult.Message);
+    end
+    pause(0.2);                   % let the stream start
+    eyetracker.get_gaze_data();   % clear junk
+
+    % — c) start recording & stamp clocks —
+    eyetracker.start_recording();
+    tRecordingStart = eyetracker.get_system_time_stamp();
+    tGameStart      = GetSecs;
+    
+end
+
 % save game start
 currentEEGTrig = logEvent('game_start');
 
@@ -110,6 +129,15 @@ boardSnapshot(end+1) = struct( ...
 );
 lastDropTime = GetSecs;
 
+if ~demoMode
+    % flush stray samples & catch errors
+    raw0 = eyetracker.get_gaze_data();
+    if isa(raw0,'StreamError')
+        warning('Pre-loop gaze flush error: %s', raw0.Message);
+    end
+end
+
+
 %% now main loop:
 while ~S.gameOver
 
@@ -117,12 +145,26 @@ while ~S.gameOver
 % END COLLECTION?!?!
 
 % GAZE GRAB ───────────────────────────────────────────────
+% — pull & append all samples with error‐check —
 if ~demoMode
-    newSamples = eyetracker.get_gaze_data();   % pull *all* buffered samples
-    if ~isempty(newSamples)
-        blockGazeData(end+1:end+numel(newSamples)) = newSamples;
+    raw = eyetracker.get_gaze_data('flat');
+    if isa(raw,'StreamError')
+        warning('Mid-loop gaze error: %s', raw.Message);
+        raw = [];
+    end
+    for i = 1:numel(raw)
+        s = raw(i);
+        blockGazeData(end+1) = struct( ...
+            'SystemTimeStamp', s.SystemTimeStamp, ...
+            'DeviceTimeStamp', s.DeviceTimeStamp, ...
+            'GazeX',           s.LeftEye_GazePoint_OnDisplayArea(1), ...
+            'GazeY',           s.LeftEye_GazePoint_OnDisplayArea(2), ...
+            'PupilDiaL',       s.LeftEye_Pupil_Diameter, ...
+            'PupilDiaR',       s.RightEye_Pupil_Diameter ...
+        );
     end
 end
+
 
 
 
@@ -216,27 +258,45 @@ save(snapshotFile, 'boardSnapshot', 'eventLog', '-v7.3');
 
 
 if ~demoMode
-    % final flush *before* stopping
-    finalSamples = eyetracker.get_gaze_data();
-    if ~isempty(finalSamples)
-        blockGazeData(end+1:end+numel(finalSamples)) = finalSamples;
+    % — final pull & error‐check —
+    rawF = eyetracker.get_gaze_data('flat');
+    if isa(rawF,'StreamError')
+        warning('Final gaze error: %s', rawF.Message);
+        rawF = [];
+    end
+    for i = 1:numel(raw)
+        s = raw(i);
+        blockGazeData(end+1) = struct( ...
+            'SystemTimeStamp', s.SystemTimeStamp, ...
+            'DeviceTimeStamp', s.DeviceTimeStamp, ...
+            'GazeX',           s.LeftEye_GazePoint_OnDisplayArea(1), ...
+            'GazeY',           s.LeftEye_GazePoint_OnDisplayArea(2), ...
+            'PupilDiaL',       s.LeftEye_Pupil_Diameter, ...
+            'PupilDiaR',       s.RightEye_Pupil_Diameter ...
+        );
     end
 
+    % — stop recording & stamp Tobii clock at end —
     eyetracker.stop_recording();
-    tGEEnd = GetSecs;
-
-    % quick QC
-    lossL = mean([blockGazeData.PupilDiaL] == 0);
-    lossR = mean([blockGazeData.PupilDiaR] == 0);
-
-    gazeFile = fullfile(expParams.paths.gaze, ...
-    sprintf('%s_game%03d_gaze.mat', subjID, gameIdx));
-    save(gazeFile, 'blockGazeData', 'tGEStart', 'tGEEnd', 'lossL', 'lossR');
-
-
+    tRecordingEnd = eyetracker.get_system_time_stamp();
 else
-    WaitSecs(1);   % demo stub
+    WaitSecs(1);  % demo stub
+    tRecordingEnd = GetSecs;
 end
+
+% — compute QC loss metrics —
+lossL = mean([blockGazeData.PupilDiaL] == 0);
+lossR = mean([blockGazeData.PupilDiaR] == 0);
+
+% — save gaze file every time for QC —
+save(gazeFile, ...
+     'blockGazeData', ...
+     'tRecordingStart', ...
+     'tRecordingEnd', ...
+     'lossL', 'lossR', ...
+     'demoMode', ...
+     '-v7.3');
+
 
 % record game so the wrapper can log it
 activInfo(end+1) = struct( ...
@@ -271,14 +331,21 @@ end % try end (for eye tracker)
         if nargin < 2, val1 = ''; end
         if nargin < 3, val2 = ''; end
 
-        % 1) Append to eventLog
+        % 1) Append to eventLog with Tobii timestamp
+        sysTS   = GetSecs;
+        tobiiTS = NaN;
+        if ~demoMode
+            tobiiTS = eyetracker.get_system_time_stamp();
+        end
         newEntry = struct( ...
-            'timestamp', GetSecs, ...
-            'eventType', eventType, ...
+            'timestamp',  sysTS, ...
+            'systemTS',   tobiiTS, ...
+            'eventType',  eventType, ...
             'val1',       val1, ...
             'val2',       val2  ...
-            );
+        );
         eventLog(end+1) = newEntry;
+
 
         % 2) If this event has an EEG code, send it out
         if isKey(p5_triggers, eventType)

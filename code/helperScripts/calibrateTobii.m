@@ -1,275 +1,200 @@
-%-------------------------------------------------------
-% Author: Brady M. Chisholm
-% University of Minnesota Twin Cities, Dpt. of Neuroscience
-% Date: 6.9.2025
-%
-% Description: Handles Tobii calibration 
-%                            
-%-------------------------------------------------------
 function calibrationData = calibrateTobii(window, windowRect, eyetracker, expParams)
+%-------------------------------------------------------
+% Author: Brady M. Chisholm (merged with Tobii example)
+% University of Minnesota Twin Cities, Dpt. of Neuroscience
+% Date: 6.9.2025 (updated 7.7.2025)
+%
+% Description:
+%   Unified Tobii calibration routine that:
+%     • Shows a PTB welcome screen
+%     • Wraps enter_calibration_mode in try/catch to recover error210
+%     • Displays each point, collects data, and prints its result code
+%     • Computes & applies the calibration
+%     • Plots calibration targets and gaze samples in a MATLAB figure
+%     • Reports left/right loss %, lets experimenter Save, Re-calibrate, or Abort
+%
 % Inputs:
-%   window     : Psychtoolbox onscreen window pointer.
-%   windowRect : [left top right bottom] rect from Screen.
-%   eyetracker : Eyetracker object from Tobii (EyeTrackingOperations).
+%   window, windowRect : Psychtoolbox window
+%   eyetracker         : Tobii EyeTracker object
+%   expParams          : struct (must contain baseDataDir, subjID, timestamp)
 %
 % Output:
-%   calibrationData : struct containing final calibration result if saved.
-%                     Returns empty if the user aborts or never saves.
-
-%% ---------------- Setup Colors, Keys, and PTB Info ----------------
+%   calibrationData    : empty if aborted, or the calibration_result struct
 
 HideCursor(window);
 Screen('TextFont', window, 'Arial');
 Screen('TextSize', window, 24);
 
-% Colors (PTB 0-1 range)
-white = [1, 1, 1];
-bgColor = [0, 0, 0];
-redColor = [1, 0, 0];
-blueColor = [0, 0, 1];
+white     = [1 1 1];
+bgColor   = [0 0 0];
+redColor  = [1 0 0];
+blueColor = [0 0 1];
 
-% Keys
 KbName('UnifyKeyNames');
 escapeKey = KbName('ESCAPE');
-spaceKey  = KbName('Space');
+spaceKey  = KbName('SPACE');
 sKey      = KbName('S');
 rKey      = KbName('R');
 
-% Basic sizes for calibration dots
 dotSizePix   = 30;
 innerDotSize = dotSizePix * 0.5;
 
-% We’ll store calibration data only if user saves
-calibrationData = struct();
+calibrationData  = [];
 calibrationSaved = false;
+calibrateAgain   = true;
 
-%% ----------------- Do loop recal -----------------
-calibrateAgain = true;
 try
     while calibrateAgain
-        
-        %-------------------------------------------------
-        % 1) WELCOME SCREEN
-        %-------------------------------------------------
+        %% 1) Welcome & wait for SPACE or ESC
         Screen('FillRect', window, bgColor);
-        welcomeMsg = [
-            'Welcome to Tobii Calibration!\n\n',...
-            'Wait for experimenter instructions to begin.\n\n',...
-            'Experimenter Controls:\n',...
-            '- Press SPACE to start calibration\n',...
-            '- Press ESC to quit (no calibration)\n'
-        ];
-        DrawFormattedText(window, welcomeMsg, 'center', 'center', white);
+        msg = [
+            'Welcome to Tobii Calibration!'             newline newline ...
+            'Experimenter Controls:'                    newline ...
+            '- SPACE: Start calibration'                newline ...
+            '- ESC:   Abort (no calibration)'          newline];
+        DrawFormattedText(window, msg, 'center','center', white);
         Screen('Flip', window);
-        
-        % Wait until user presses SPACE or ESC
-        waiting = true;
-        while waiting
-            [~, ~, keyCode] = KbCheck;
+
+        % wait
+        while true
+            [~,~,keyCode] = KbCheck;
             if keyCode(escapeKey)
-                % User chose to abort
                 ShowCursor(window);
                 disp('Calibration aborted by experimenter.');
-                return;  % Return empty calibrationData
+                return
             elseif keyCode(spaceKey)
-                waiting = false;
+                break
             end
         end
 
-%-------------------------------------------------
-% 2) TOBII CALIBRATION
-%-------------------------------------------------
-% Setup calibration object
-calib = ScreenBasedCalibration(eyetracker);        
-% We'll define your points for calibration here
-lb = 0.1;  % left bound
-xc = 0.5;  % horizontal center
-rb = 0.9;  % right bound
-ub = 0.1;  % upper bound
-yc = 0.5;  % vertical center
-bb = 0.9;  % bottom bound
-
-points_to_calibrate = [
-    lb, ub;
-    rb, ub;
-    xc, yc;
-    lb, bb;
-    rb, bb
-];
-
-% Enter calibration mode
-calib.enter_calibration_mode();
-
-% For each calibration point, show dot & collect data
-[screenXpixels, screenYpixels] = Screen('WindowSize', window);
-
-for i = 1:size(points_to_calibrate, 1)
-    pt = points_to_calibrate(i,:);
-    
-    % Draw large dot (red) + smaller dot (white center)
-    Screen('FillRect', window, bgColor);
-    Screen('DrawDots', window, pt.*[screenXpixels, screenYpixels], dotSizePix, redColor, [], 2);
-    Screen('DrawDots', window, pt.*[screenXpixels, screenYpixels], innerDotSize, white, [], 2);
-    Screen('Flip', window);
-    
-    pause(1);  % wait for user to fixate; pile data 
-    
-    % Collect data for that point
-    status = calib.collect_data(pt);
-    if status ~= CalibrationStatus.Success
-        % Attempt again if not successful
-        calib.collect_data(pt);
-    end
-end
-
-DrawFormattedText(window, 'Calculating calibration result....', 'center', 'center', white);
-Screen('Flip', window);
-
-% apply calibration
-calibration_result = calib.compute_and_apply();
-
-% add in post calibration stats to help the experimenter decide whether to
-% continue with calibration or recalibrate 
-% Initialize counters
-totalPoints = 0;
-leftValid = 0;
-rightValid = 0;
-
-points = calibration_result.CalibrationPoints;
-for i = 1:length(points)
-    for j = 1:length(points(i).LeftEye)
-        totalPoints = totalPoints + 1;
-
-        if points(i).LeftEye(j).Validity == CalibrationEyeValidity.ValidAndUsed
-            leftValid = leftValid + 1;
-        end
-
-        if points(i).RightEye(j).Validity == CalibrationEyeValidity.ValidAndUsed
-            rightValid = rightValid + 1;
-        end
-    end
-end
-
-% Compute %-age loss
-leftLossPercent = 100 * (1 - leftValid / totalPoints);
-rightLossPercent = 100 * (1 - rightValid / totalPoints);
-
-% resultsMsg = sprintf(['Calibration Stats:\n\n' ...
-%     'Total Samples: %d\n' ...
-%     'Left Eye Loss: %.1f%%\n' ...
-%     'Right Eye Loss: %.1f%%\n\n'], ...
-%     totalPoints, leftLossPercent, rightLossPercent);
-
-% Format results message
-msg = sprintf(['Calibration Stats:\n' ...
-    'Total Samples: %d\n' ...
-    'Left Eye Loss: %.1f%%\n' ...
-    'Right Eye Loss: %.1f%%\n\n' ...
-    'Press "S" to SAVE calibration and finish.\n' ...
-    'Press "R" to Recalibrate.\n' ...
-    'Press "ESC" to Abort without saving.\n'], totalPoints, leftLossPercent, rightLossPercent);
-
-DrawFormattedText(window, msg, 'center', 'center', white);
-Screen('Flip', window);
-
-% Exit calibration mode
-calib.leave_calibration_mode();
-
-% If the calibration fails
-if calibration_result.Status ~= CalibrationStatus.Success
-    disp('Calibration compute_and_apply() did not succeed. Aborting.');
-    ShowCursor(window);
-    return;
-end
-
-%-------------------------------------------------
-% 3) DISPLAY CALIBRATION RESULTS
-%-------------------------------------------------
-% Next, show all points from the calibration result similarly to your Gabor code.
-% We’ll draw them in the correct color for each eye (left=red, right=blue).
-
-Screen('FillRect', window, bgColor);
-
-for i = 1:length(points)
-    % Draw the calibration target as a small white dot
-    Screen('DrawDots', window, ...
-        points(i).PositionOnDisplayArea .* [screenXpixels, screenYpixels], ...
-        dotSizePix*0.5, white, [], 2);
-    
-    % Each CalibrationPoint can have multiple data samples: LeftEye(j), RightEye(j)
-    for j = 1:length(points(i).LeftEye)
-        
-        % If left eye is valid
-        if points(i).LeftEye(j).Validity == CalibrationEyeValidity.ValidAndUsed
-            leftPt = points(i).LeftEye(j).PositionOnDisplayArea .* [screenXpixels, screenYpixels];
-            Screen('DrawDots', window, leftPt, dotSizePix*0.3, redColor, [], 2);
-            % Draw a line from the eye point to the target
-            coords = [leftPt; points(i).PositionOnDisplayArea .* [screenXpixels, screenYpixels]];
-            Screen('DrawLines', window, coords', 2, redColor);
-        end
-        
-        % If right eye is valid
-        if points(i).RightEye(j).Validity == CalibrationEyeValidity.ValidAndUsed
-            rightPt = points(i).RightEye(j).PositionOnDisplayArea .* [screenXpixels, screenYpixels];
-            Screen('DrawDots', window, rightPt, dotSizePix*0.3, blueColor, [], 2);
-            coords = [rightPt; points(i).PositionOnDisplayArea .* [screenXpixels, screenYpixels]];
-            Screen('DrawLines', window, coords', 2, blueColor);
-        end
-    end
-end
-
-% Prompt to save or recalibrate
-% [S] Save, [R] Recalibrate, [ESC] Abort
-msg = [
-    'Calibration complete!\n\n',...
-    'Press "S" to SAVE calibration and finish.\n',...
-    'Press "R" to Recalibrate.\n',...
-    'Press "ESC" to Abort without saving.\n'
-];
-DrawFormattedText(window, msg, 'center', screenYpixels*0.93, white);
-Screen('Flip', window);
-
-userDecided = false;
-while ~userDecided
-    [~, ~, keyCode] = KbCheck;
-    if keyCode(escapeKey)
-        % Abandon calibration entirely
-        ShowCursor(window);
-        disp('Calibration aborted without saving.');
-        return;
-    elseif keyCode(sKey)
-        % Save calibration
-eyeDataDir = fullfile(expParams.baseDataDir, 'subjData', expParams.subjID, 'eyeData');
-if ~exist(eyeDataDir, 'dir')
-    mkdir(eyeDataDir);
-end
-calibFileName = sprintf('calibration_%s.mat', expParams.timestamp);
-save(fullfile(eyeDataDir, calibFileName), 'calibration_result');
-calibrationSaved = true;
-calibrationData = calibration_result;
-
-        disp('Calibration saved (returned as output).');
-        calibrateAgain = false;
-        userDecided = true;
-    elseif keyCode(rKey)
-        disp('Recalibration selected...');
-        calibrateAgain = true; % setting these to true sends us back to the top of the loop 
-        userDecided = true;
+        %% 2) Enter calibration mode (with manufacturer's retry on error210)
+        calib = ScreenBasedCalibration(eyetracker);
+        try
+            calib.enter_calibration_mode();
+        catch ME
+            if strcmp(ME.identifier,'EnterCalibrationMode:error210')
+                fprintf('Previous calibration not completed; restarting...\n');
+                calib.leave_calibration_mode();
+                calib.enter_calibration_mode();
+            else
+                rethrow(ME);
             end
+        end
+
+        %% 3) Show & collect each calibration point
+        [sx, sy] = Screen('WindowSize', window);
+        pts = [0.1 0.1; 0.9 0.1; 0.5 0.5; 0.1 0.9; 0.9 0.9];
+
+        for i = 1:size(pts,1)
+            p = pts(i,:);
+            Screen('FillRect', window, bgColor);
+            Screen('DrawDots', window, p.*[sx sy], dotSizePix,   redColor,  [], 2);
+            Screen('DrawDots', window, p.*[sx sy], innerDotSize, white,     [], 2);
+            Screen('Flip', window);
+            pause(1);
+
+            cr = calib.collect_data(p);
+            fprintf('Point [%.2f,%.2f] result: %d\n', p, cr.value);
+            if cr.value ~= CalibrationStatus.Success
+                cr = calib.collect_data(p);
+                fprintf('  Retry → result: %d\n', cr.value);
+            end
+        end
+
+        %% 4) Compute & apply
+        DrawFormattedText(window, 'Computing calibration…', 'center','center', white);
+        Screen('Flip', window);
+        calibration_result = calib.compute_and_apply();
+        fprintf('Calibration Status: %d\n', calibration_result.Status.value);
+        calib.leave_calibration_mode();
+
+        if calibration_result.Status ~= CalibrationStatus.Success
+            disp('Calibration failed to apply; retrying full calibration.');
+            continue
+        end
+
+        %% 5) Plot calibration targets & gaze samples
+        if calibration_result.Status == CalibrationStatus.Success
+            figure('Name','Tobii Calibration Plot','NumberTitle','off');
+            hold on;
+            set(gca,'YDir','reverse');
+            axis([-0.2 1.2 -0.2 1.2]);
+            CP = calibration_result.CalibrationPoints;
+            for i = 1:numel(CP)
+                % plot target
+                pos = CP(i).PositionOnDisplayArea;
+                plot(pos(1), pos(2), 'ok', 'LineWidth', 10);
+                % plot each eye sample
+                mSize = numel(CP(i).LeftEye);
+                for j = 1:mSize
+                    if CP(i).LeftEye(j).Validity  == CalibrationEyeValidity.ValidAndUsed
+                        lep = CP(i).LeftEye(j).PositionOnDisplayArea;
+                        plot(lep(1), lep(2), '-xr', 'LineWidth', 3);
+                    end
+                    if CP(i).RightEye(j).Validity == CalibrationEyeValidity.ValidAndUsed
+                        rep = CP(i).RightEye(j).PositionOnDisplayArea;
+                        plot(rep(1), rep(2), 'xb', 'LineWidth', 3);
+                    end
+                end
+            end
+            xlabel('Normalized X Position');
+            ylabel('Normalized Y Position');
+            title('Calibration targets (black) & gaze samples');
+            hold off;
+        end
+
+        %% 6) Compute left/right loss %
+        totalPts = 0; leftValid = 0; rightValid = 0;
+        CP = calibration_result.CalibrationPoints;
+        for i = 1:numel(CP)
+            for j = 1:numel(CP(i).LeftEye)
+                totalPts = totalPts + 1;
+                if CP(i).LeftEye(j).Validity  == CalibrationEyeValidity.ValidAndUsed,  leftValid  = leftValid+1;  end
+                if CP(i).RightEye(j).Validity == CalibrationEyeValidity.ValidAndUsed,  rightValid = rightValid+1; end
+            end
+        end
+        leftLoss  = 100*(1 - leftValid/totalPts);
+        rightLoss = 100*(1 - rightValid/totalPts);
+
+        %% 7) Prompt Save vs Re-calibrate vs Abort
+        statsMsg = sprintf(...
+          'Calibration Stats:\nTotal samples: %d\nLeft loss: %.1f%%\nRight loss: %.1f%%\n\n' + ...
+          'Press S=Save, R=Re-calibrate, ESC=Abort\n', totalPts, leftLoss, rightLoss);
+        DrawFormattedText(window, statsMsg, 'center','center', white);
+        Screen('Flip', window);
+
+        while true
+            [~,~,keyCode] = KbCheck;
+            if keyCode(escapeKey)
+                ShowCursor(window);
+                disp('Calibration aborted without saving.');
+                return
+            elseif keyCode(sKey)
+                outDir = fullfile(expParams.baseDataDir,'subjData',expParams.subjID,'eyeData');
+                if ~exist(outDir,'dir'), mkdir(outDir), end
+                fn = sprintf('calibration_%s.mat', expParams.timestamp);
+                save(fullfile(outDir,fn), 'calibration_result');
+                calibrationSaved = true;
+                calibrationData  = calibration_result;
+                disp('Calibration saved.');
+                break
+            elseif keyCode(rKey)
+                disp('Re-calibration selected.');
+                break
+            end
+        end
+
+        if calibrationSaved
+            calibrateAgain = false;
         end
     end
 catch ME
-    % If error, give cursor back & rethrow
     ShowCursor(window);
     rethrow(ME);
 end
 
-% give cmd output on save 
 ShowCursor(window);
-if calibrationSaved
-    disp('Calibration finished and saved to "calibrationData".');
-else
+if ~calibrationSaved
     disp('No calibration data saved.');
-end 
-
-end % function end 
+end
+end
