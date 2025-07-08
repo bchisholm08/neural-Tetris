@@ -25,8 +25,6 @@ try
     expParams.p5.gameplayCount = gameCount;
 
     t0 = GetSecs;
-   
-   % unneeded, passed in activ struct:::    pastBoardsPath = expParams.subjPaths.boardData;
 
     %% PHASE 1 - play for 10 minutes
     while (GetSecs - t0) < phaseOne % for game intro time
@@ -62,7 +60,7 @@ try
         if coin < 0.5 % 
             fprintf(['\n=============================\n'   ...
           'COIN FLIP WAS: %.2f; PLAYING TETRIS\n' ...
-          '=============================\n\n', coin]);
+          '=============================\n\n'],coin);
             WaitSecs(1.5) % for me
             expParams.p5.gameplayCount = gameCount;
             [playFile, newInfo, gameLog] = playOneTetrisGame(expParams);
@@ -76,7 +74,7 @@ try
         else
             fprintf(['\n=============================\n'   ...
           'COIN FLIP WAS: %.2f; WATCHING TETRIS\n' ...
-          '=============================\n\n', coin]);
+          '=============================\n\n'], coin);
             WaitSecs(1.5) % for me
             % find all not yet replayed
             unusedIdx = find(~[activSessionInfo.usedForReplay]);

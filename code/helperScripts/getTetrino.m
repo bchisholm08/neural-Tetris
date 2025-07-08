@@ -23,8 +23,8 @@ function pieces = getTetrino(expParams)
 
     % pieces = struct('tex', {}, 'rect', {}, 'pID', {}, 'name', {});
     pieces = struct('tex', {}, 'rect', {}, 'pID', {}, 'name', {}, 'shape', {}, 'coords', {}, 'pivot', {});
-    blockSize = expParams.p5.blockSize; % single piece-section (px) 
-    border = 2;     % border width (px)
+    blockSize = expParams.visual.blockSize; % single piece-section (px) 
+    border = expParams.visual.border;     % border width (px)
 
     for p = 1:length(shapes)
         shape = shapes{p};
@@ -59,10 +59,10 @@ function pieces = getTetrino(expParams)
             end
         end
         
-pieces(p).shape  = shape;                          % binary matrix
-[r,c]            = find(shape);
-pieces(p).coords = [r, c];                         % 4×2 list
-pieces(p).pivot  = ceil(size(shape)/2);            % center of shape
+        pieces(p).shape  = shape;                          % binary matrix
+        [r,c]            = find(shape);
+        pieces(p).coords = [r, c];                         % 4×2 list
+        pieces(p).pivot  = ceil(size(shape)/2);            % center of shape
 
         pieces(p).tex = Screen('MakeTexture', expParams.screen.window, img);
         pieces(p).rect = [0 0 width * blockSize height * blockSize];

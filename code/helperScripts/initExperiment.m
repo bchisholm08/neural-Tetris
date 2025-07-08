@@ -75,7 +75,12 @@ expParams.colors.red   = [255 0 0];
 expParams.colors.green = [0 255 0];
 expParams.colors.piece = [127 127 127]; % exp gray
 expParams.colors.background = [0 0 0];  % black background
-
+expParams.visual.pieceColor = uint8([64 64 64]);
+pieceNames = {'I','Z','O','S','J','L','T'};
+% assign piece colors
+for i = 1:numel(pieceNames)
+    expParams.colors.pieces.(pieceNames{i}) = expParams.visual.pieceColor;
+end
 %% exp fixation params
 expParams.fixation.size = 10; % in pixels for cross arms
 expParams.fixation.lineWidth = 2; % in pixels
@@ -216,6 +221,15 @@ else
     Screen('Preference', 'SkipSyncTests', 0);  % strict
 end
 
+% block size parameters 
+% pixel size of the tableau "frame" (width, height)
+expParams.visual.tableauSize = [600 450];    
+% how much of that frame the piece should fill (0 < scale ≤ 1)
+expParams.visual.pieceScale  = 0.8;   
+expParams.visual.blockSize = 50;
+expParams.visual.border = 2; 
+expParams.visual.boardH = 20;
+expParams.visual.boardW = 10;
 %% initialize PTB screen and save info to expParams
 PsychDefaultSetup(2); % general PTB set up, no sync test 
 
@@ -238,10 +252,17 @@ expParams.screen.windowRect = windowRect;
 expParams.screen.width = screenXpixels;
 expParams.screen.height = screenYpixels;
 expParams.screen.center = [xCenter, yCenter];
+tw = expParams.visual.tableauSize(1);
+th = expParams.visual.tableauSize(2);
+cx = expParams.screen.center(1);
+cy = expParams.screen.center(2);
+% new parameter for centering 
+expParams.visual.tableauRect = CenterRectOnPoint([0 0 tw th], cx, cy);
+
 expParams.screen.screenNumber = screenNumber;
 expParams.screen.ifi = Screen('GetFlipInterval', expParams.screen.window); % save inter-frame interval
 
-fprintf('Psychtoolbox initialized successfully.\n');
+fprintf('======================\n\nPsychtoolbox initialized successfully.\n======================');
 
 %% demoMode vs experiment 'real' data collection settings 
 % from here below we have a big 'if/else/end' that first tries to
@@ -302,7 +323,6 @@ if demoMode
     expParams.p5.saveBoardSnapShot = 1; % manual setting, will save boardsnap shots to designated folder 
     expParams.p5.gameplayCount = 0;
     expParams.p5.replayCount = [];
-    expParams.p5.blockSize = 30; % global 
 else 
     %% REAL EXPERIMENT MODE
     %% timings 
@@ -347,7 +367,6 @@ try
     disp(['  Model:            ' eyetracker.Model]);
     disp(['  Firmware Version: ' eyetracker.FirmwareVersion]);
     disp(['  Runtime Version:  ' eyetracker.RuntimeVersion]);
-
 
     % Screen size info for calibration
     expParams.Tobii_info.screen_pixels = [expParams.screen.width, expParams.screen.height];
@@ -406,10 +425,16 @@ expParams.eyeTracker =  eyetracker;
     % % % expParams.p4.options.trialsPerBlock = 50;
     % % % expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
     % % % % p4, 350 total trials
-
+    
+    superString = 1;
+    if superString
+    expParams.p5.options.totalTime = 240; % 4 MIN TOTAL
+    expParams.p5.options.phaseOne = 120; % 2 MIN OF PLAYING 
+    else 
     expParams.p5.options.totalTime = 5400; % 90 min        % old 3600; % total time, 60 minutes 
     expParams.p5.options.phaseOne = 600; % 10 min initial playtime to accumulate gameplay  
     % p5, 90 min total. (10 min forced play to begin, 80 min 50/50 play/watch after that time
+    end
 
     % other p5 options 
     expParams.p5.saveBoardSnapShot = 1; % manual setting, will save boardsnap shots to designated folder 

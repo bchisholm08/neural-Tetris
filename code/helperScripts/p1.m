@@ -13,37 +13,46 @@ function p1(subjID, demoMode, window, windowRect, expParams, ioObj, address, eye
 try %% main exp. try/C
     %% instruction screen call
     p1instruct(window, expParams);
-    tRecordingStart = NaN;
-    tRecordingEnd   = NaN;
-blockGazeData = struct( ...
-            'SystemTimeStamp',{}, ...    % Tobii SDK clock
-            'DeviceTimeStamp',{}, ...    % Tobii device clock
-            'GazeX',           {}, ...
-            'GazeY',           {}, ...
-            'PupilDiaL',       {}, ...
-            'PupilDiaR',       {}  ...
-        );
+    
+   
+% begin eye tings
 
-    gazeFile = fullfile(expParams.subjPaths.eyeDir, ...
+gazeFile = fullfile(expParams.subjPaths.eyeDir, ...
             sprintf('%s_p1_gaze.mat', subjID));
 
-    if ~demoMode
-        % — a) init gaze buffer with both timestamps —
-        % — b) subscribe & flush any initial errors —
-        subResult = eyetracker.get_gaze_data();
-        if isa(subResult,'StreamError')
-            warning('Tobii subscription error: %s', subResult.Message);
-        end
-        pause(0.2);
-        eyetracker.get_gaze_data();
-    
-        % — c) start recording —
-        eyetracker.start_recording();
-    
-        % — d) stamp Tobii & MATLAB clocks —
-        tRecordingStart = eyetracker.get_system_time_stamp();
-        tGameStart      = GetSecs;
+% — a) init gaze buffer with both timestamps —
+blockGazeData = struct( ...
+'SystemTimeStamp',{}, ...  % Tobii SDK clock
+'DeviceTimeStamp',{}, ...  % Tobii device clock
+'GazeX',           {}, ...
+'GazeY',           {}, ...
+'PupilDiaL',       {}, ...
+'PupilDiaR',       {} );
+    tRecordingStart = NaN;
+    tRecordingEnd   = NaN;
+
+if ~demoMode
+    % — b) subscribe & flush any errors —
+    subResult = eyetracker.get_gaze_data();
+    if isa(subResult,'StreamError')
+        warning('Tobii subscription error: %s', subResult.Message);
     end
+    pause(0.2);                   % let the stream start
+    eyetracker.get_gaze_data();   % clear junk
+
+    % — c) mark "recording" start with timestamp only —
+    % tRecordingStart = eyetracker.get_system_time_stamp();
+    tGameStart      = GetSecs;
+end
+
+
+if ~demoMode
+    % flush stray samples & catch errors
+    raw0 = eyetracker.get_gaze_data();
+    if isa(raw0,'StreamError')
+        warning('Pre-loop gaze flush error: %s', raw0.Message);
+    end
+end	
 
 
     pieces = getTetrino(expParams);
@@ -81,26 +90,27 @@ blockGazeData = struct( ...
 
             % Wait for the duration of the fixation period
             WaitSecs(expParams.p1.options.fixationDuration);
+
 if ~demoMode
-    % pull & append all buffered samples in flat mode
-    raw = eyetracker.get_gaze_data('flat');
+    raw = eyetracker.get_gaze_data();
     if isa(raw,'StreamError')
-        warning('Gaze pull error: %s', raw.Message);
+        warning('Mid-loop gaze error: %s', raw.Message);
         raw = [];
     end
     for i = 1:numel(raw)
         s = raw(i);
-        blockGazeData(end+1) = struct( ...
-            'SystemTimeStamp', s.SystemTimeStamp, ...
-            'DeviceTimeStamp', s.DeviceTimeStamp, ...
-            'GazeX',           s.LeftEye_GazePoint_OnDisplayArea(1), ...
-            'GazeY',           s.LeftEye_GazePoint_OnDisplayArea(2), ...
-            'PupilDiaL',       s.LeftEye_Pupil_Diameter, ...
-            'PupilDiaR',       s.RightEye_Pupil_Diameter ...
-        );
-    end
-end
 
+        blockGazeData(end+1) = struct( ...
+    'SystemTimeStamp', s.SystemTimeStamp, ...
+    'DeviceTimeStamp', s.DeviceTimeStamp, ...
+    'GazeX',           s.LeftEye.GazePoint.OnDisplayArea(1), ...
+    'GazeY',           s.LeftEye.GazePoint.OnDisplayArea(2), ...
+    'PupilDiaL',       s.LeftEye.Pupil.Diameter, ...
+    'PupilDiaR',       s.RightEye.Pupil.Diameter ...
+);
+
+    end
+end	
 
             % --- 2. Stimulus Presentation ---
             % Prepare the piece frame in the back buffer
@@ -146,77 +156,80 @@ end
 
             % The fixation cross is now on screen. Wait for the rest of the ITI.
             WaitSecs(itiDuration);
-if ~demoMode
-    % pull & append all buffered samples in flat mode
-    raw = eyetracker.get_gaze_data('flat');
-    if isa(raw,'StreamError')
-        warning('Gaze pull error: %s', raw.Message);
-        raw = [];
-    end
-    for i = 1:numel(raw)
-        s = raw(i);
-        blockGazeData(end+1) = struct( ...
-            'SystemTimeStamp', s.SystemTimeStamp, ...
-            'DeviceTimeStamp', s.DeviceTimeStamp, ...
-            'GazeX',           s.LeftEye_GazePoint_OnDisplayArea(1), ...
-            'GazeY',           s.LeftEye_GazePoint_OnDisplayArea(2), ...
-            'PupilDiaL',       s.LeftEye_Pupil_Diameter, ...
-            'PupilDiaR',       s.RightEye_Pupil_Diameter ...
-        );
-    end
-end
+
 
 
         end % --- End of trial loop ---
         % no breaks in p1
     end % p1 block end
 
-    %  if last block, ensure we save pupil data
-if ~demoMode
-    % — final pull & error‐check —
-    rawF = eyetracker.get_gaze_data('flat');
-    if isa(rawF,'StreamError')
-        warning('Final gaze error: %s', rawF.Message);
-        rawF = [];
-    end
-    for i = 1:numel(raw)
-        s = raw(i);
-        blockGazeData(end+1) = struct( ...
-            'SystemTimeStamp', s.SystemTimeStamp, ...
-            'DeviceTimeStamp', s.DeviceTimeStamp, ...
-            'GazeX',           s.LeftEye_GazePoint_OnDisplayArea(1), ...
-            'GazeY',           s.LeftEye_GazePoint_OnDisplayArea(2), ...
-            'PupilDiaL',       s.LeftEye_Pupil_Diameter, ...
-            'PupilDiaR',       s.RightEye_Pupil_Diameter ...
-        );
-    end
 
-    % — stop recording & stamp Tobii clock at end —
-    eyetracker.stop_recording();
-    tRecordingEnd = eyetracker.get_system_time_stamp();
-else
-    WaitSecs(1);  % demo stub
-    tRecordingEnd = GetSecs;
-end
-
-% — compute QC metrics —
-lossL = mean([blockGazeData.PupilDiaL] == 0);
-lossR = mean([blockGazeData.PupilDiaR] == 0);
-
-% — always save gaze data for QC —
-gazeFile = fullfile(expParams.subjPaths.eyeDir, ...
-    sprintf('%s_p1_gazeData.mat', subjID));
-save(gazeFile, ...
-     'blockGazeData', ...
-     'tRecordingStart', ...
-     'tRecordingEnd', ...
-     'lossL', 'lossR', ...
-     'demoMode', ...
-     '-v7.3');
 
     % not sure if this will be useful or not--too simple to NOT include
     expParams.p1.options.sectionDoneFlag = 1;
+    
+        if ~demoMode
+        % — final pull & error‐check —
+        rawF = eyetracker.get_gaze_data();
+        if isa(rawF,'StreamError')
+            warning('Final gaze error: %s', rawF.Message);
+            rawF = [];
+        end
 
+        for i = 1:numel(rawF)
+            s = rawF(i);
+
+            % handle possible missing eye data
+            if isfield(s, 'LeftEye') && ~isempty(s.LeftEye) && isfield(s.LeftEye, 'GazePoint') && isfield(s.LeftEye.GazePoint, 'OnDisplayArea')
+                gazeX = s.LeftEye.GazePoint.OnDisplayArea(1);
+                gazeY = s.LeftEye.GazePoint.OnDisplayArea(2);
+                pupL  = s.LeftEye.Pupil.Diameter;
+            else
+                gazeX = NaN;
+                gazeY = NaN;
+                pupL  = NaN;
+            end
+
+            if isfield(s, 'RightEye') && ~isempty(s.RightEye) && isfield(s.RightEye, 'Pupil')
+                pupR = s.RightEye.Pupil.Diameter;
+            else
+                pupR = NaN;
+            end
+
+            blockGazeData(end+1) = struct( ...
+                'SystemTimeStamp', s.SystemTimeStamp, ...
+                'DeviceTimeStamp', s.DeviceTimeStamp, ...
+                'GazeX',           gazeX, ...
+                'GazeY',           gazeY, ...
+                'PupilDiaL',       pupL, ...
+                'PupilDiaR',       pupR ...
+                );
+        end
+
+
+        % — stop recording & stamp Tobii clock at end —
+        % eyetracker.stop_recording();
+        % tRecordingEnd = eyetracker.get_system_time_stamp();
+        tRecordingEnd = GetSecs;
+    else
+        WaitSecs(1);  % demo stub
+        tRecordingEnd = GetSecs;
+    end
+	
+	
+    % — compute QC loss metrics —
+    lossL = mean([blockGazeData.PupilDiaL] == 0);
+    lossR = mean([blockGazeData.PupilDiaR] == 0);
+	
+	
+	% save gaze file 
+    save(gazeFile, ... % named @ top of script 
+        'blockGazeData', ...
+        'tRecordingStart', ...
+        'tRecordingEnd', ...
+        'lossL', 'lossR', ...
+        'demoMode', ...
+        '-v7.3');
     % save data
     saveDat('p1', subjID, data, expParams, demoMode);
 

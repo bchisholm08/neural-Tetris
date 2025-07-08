@@ -13,7 +13,6 @@
 %-------------------------------------------------------
 function tableaus = getTableaus(window, expParams)
 
-
 % can use this code chunk to delete tableaus from the environment if they already
 % exist. As I modify tableaus, this is an important 
     tableauPath = fullfile(pwd, 'tableaus.mat');
@@ -185,8 +184,8 @@ for t = 1:length(tableaus)
     % build new img matrix for blocks + white border
 img = zeros(imgHeight, imgWidth, 3, 'uint8');
 
-% paint the blocks in gray
-blockCol = reshape(uint8(expParams.colors.piece),1,1,3);         % [127 127 127]
+% paint the blocks in gray (use expParams.colors.gray)
+blockCol = reshape(uint8(expParams.colors.gray),1,1,3);  
 for r = 1:rows
     for c = 1:cols
         if board(r,c) == 1
