@@ -8,7 +8,6 @@
 %                
 %-------------------------------------------------------
 function drawFixation(window, windowRect, expParams)
-
     length = expParams.fixation.size;
     thickness = expParams.fixation.lineWidth; 
     color = expParams.fixation.color; 

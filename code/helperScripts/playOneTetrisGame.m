@@ -1,8 +1,15 @@
+%-------------------------------------------------------
+% Author: Brady M. Chisholm
+% University of Minnesota Twin Cities, Dpt. of Neuroscience
+% Date: 7.8.2025
+%
+% Description: Facilitates playing one Tetris game, along with eye tracking
+% data and EEG triggers when not in demo mode.
+%
+%-------------------------------------------------------
 function [snapshotFile, activInfo, eventLog] = playOneTetrisGame(expParams)
-
+% begin game try
 try
-
-
     gameIdx = expParams.p5.gameplayCount;
 
     subjID = expParams.subjID;
@@ -17,44 +24,36 @@ try
         sprintf('%s_gameplay%03d_gaze.mat', subjID, gameIdx));
 
     activInfo = struct('gameNum',{},'boardFile',{},'gazeFile',{},'usedForReplay',{});
+
     % get shapes and textures
     pieces = getTetrino(expParams);
-    boardH = 20;
-    boardW = 10;
+    boardH = expParams.visual.boardH;
+    boardW = expParams.visual.boardW;
 
     S = struct(); % to store game state
 
     % use two matrix design...
     S.lockedMatrix  = zeros(boardH, boardW, 'uint8');   % landed blocks
     S.currentPiece  = [];   % linear indices falling blocks
-    S.currentPieceID= 0;    % which piece type
+    S.currentPieceID= 0;    % piece type
 
-    p5_triggers = containers.Map( ...
-        {'game_start','game_over','piece_spawn','piece_lock', ...
-        'piece_drop', ...                   % ← new
-        'key_press_left','key_press_right', ...
-        'key_press_up_rotate','key_press_down_softdrop', ...
-        'line_clear_1','line_clear_2', ...
-        'line_clear_3','line_clear_4'}, ...
-        {101,102,103,104,105,111,112,113,114,121,122,123,124});
+    p5_triggers = containers.Map({'game_start','game_over','piece_spawn','piece_lock', ...
+        'piece_drop', 'key_press_left','key_press_right', ...
+        'key_press_up_rotate','key_press_down_softdrop', 'line_clear_1','line_clear_2', ...
+        'line_clear_3','line_clear_4'}, {101,102,103,104,105,111,112,113,114,121,122,123,124});
 
-    % FIXME for the replay section; add 100 to the triggers above so 2xx is for replays, 1xx for player control
-
-    % init struct
-
-    % screw these piece colors, be GRAY!
-
+    % should be uniform gray
     S.pieceColors = repmat({expParams.visual.pieceColor}, 1, 7);
 
     S.pointsVector = [100 300 500 800]; % reg tetris points for 1, 2s, 3, or 4 lines cleared
-    S.levelFactor = .25;  % speed factor per level (omit? Ask JP) ORIGINAL GAME IS .625. Curious if changing to 0 would work
+    S.levelFactor = .025;  % speed factor per level (omit? Ask JP) ORIGINAL GAME IS .625. Curious if changing to 0 would work
 
     S.linesForLevelUp = 10; % originally 5 lines. Probably dropping all together. See above
 
     % init special logs. good reference. save to misc dir
     eventLog = struct( ...
         'timestamp',  {}, ...  % MATLAB clock (check if this equals GetSecs() call)
-        'systemTS',   {}, ...  % Tobii SDK clock (different from GetSecs() )
+        'systemTS',   {}, ...  % system clock (different from GetSecs() )
         'eventType',  {}, ...
         'val1',       {}, ...
         'val2',       {}  ...
@@ -63,7 +62,6 @@ try
     boardSnapshot = struct('timestamp', {}, 'board', {}, 'eegTrigs', {});
 
     %% initialize a new game
-
     % reset game state vars
     S.currentLevel = 1;
     S.currentLines = 0;
@@ -74,10 +72,10 @@ try
     S.nextPieceID = ceil(rand*7); % pre-determine first piece randomly
 
     % begin eye tings
-    % — a) init gaze buffer with both timestamps —
+    % init gaze buffer with both timestamps
     blockGazeData = struct( ...
-        'SystemTimeStamp',{}, ...  % Tobii SDK clock
-        'DeviceTimeStamp',{}, ...  % Tobii device clock
+        'SystemTimeStamp',{}, ...
+        'DeviceTimeStamp',{}, ...
         'GazeX',           {}, ...
         'GazeY',           {}, ...
         'PupilDiaL',       {}, ...
@@ -86,31 +84,28 @@ try
     tRecordingEnd   = NaN;
 
     if ~demoMode
-        % — b) subscribe & flush any errors —
+        % flush
         subResult = eyetracker.get_gaze_data();
         if isa(subResult,'StreamError')
             warning('Tobii subscription error: %s', subResult.Message);
         end
-        pause(0.2);                   % let the stream start
+        pause(0.2);                   % accumulate some samples 
         eyetracker.get_gaze_data();   % clear junk
 
-        % — c) mark "recording" start with timestamp only —
         % tRecordingStart = eyetracker.get_system_time_stamp();
         tGameStart      = GetSecs;
     end
-
-
-    % save game start
+    % save game start stamp
     currentEEGTrig = logEvent('game_start');
 
     % game countdown screen
     DrawFormattedText(window, sprintf('Get Ready!\n\nGame %d',expParams.p5.gameplayCount), 'center', 'center', [255 255 255]);
     % expParams.p5.gameplayCount is able to keep track of game count; i.e. has
-    % correct scope. Errors about eeg triggers are mostly about scope.
+    % correct scope. Errors about eeg triggers are mostly scope related.
     Screen('Flip', window);
     WaitSecs(2);
 
-    %% after you spawn first piece, snapshot it:
+    % after first piece is spawned, snapshot it
     currentEEGTrig = spawnNewPiece();
     drawGameState();
     Screen('Flip', window);
@@ -119,8 +114,8 @@ try
     visibleBoard = S.lockedMatrix;
     visibleBoard(S.currentPiece) = S.currentPieceID;
     boardSnapshot(end+1) = struct( ...
-        'timestamp', frameStamp, ...          % use the same timestamp you just grabbed
-        'board',     visibleBoard, ...        % now includes the falling piece
+        'timestamp', frameStamp, ...
+        'board',     visibleBoard, ...
         'eegTrigs',  currentEEGTrig ...
         );
     lastDropTime = GetSecs;
@@ -132,17 +127,11 @@ try
             warning('Pre-loop gaze flush error: %s', raw0.Message);
         end
     end
-
-
-    %% now main loop:
+    %% game loop
     while ~S.gameOver
 
-        % begin pupillometry collection for game block FIXME WHERE DOES THIS
-        % END COLLECTION?!?!
-
-        % GAZE GRAB ───────────────────────────────────────────────
-        % — pull & append all samples with error‐check —
-
+        % GAZE GRAB
+        % pull & append our sampled with error check
         if ~demoMode
             raw = eyetracker.get_gaze_data();
             if isa(raw,'StreamError')
@@ -167,6 +156,7 @@ try
         lastEEGTrig    = NaN;
         currentEEGTrig = NaN;
 
+        % handle pause
         pauseDur = handlePause(window, expParams.keys);
         if isempty(pauseDur)
             pauseDur = 0;
@@ -176,59 +166,65 @@ try
             lastDropTime = lastDropTime + pauseDur;
         end
 
-        % 2) handle manual input
+        % handle manual input
         [lastEEGTrig, didMove] = handleInput();
         if ~isnan(lastEEGTrig)
             currentEEGTrig = lastEEGTrig;
 
             if didMove
-                % ── redraw right away for horizontal/rotate moves ──
+                % redraw horizontal/rotate
+                % FIXME: sometimes you can infinitely spin a piece to stall it moving
+                % downwards. I assume what I need to do is force the frame change faster
+                % than drawGameState does, or give some timer in the functions that
+                % actually move the piece?
                 drawGameState();
                 Screen('Flip', window);
-                lastDropTime = GetSecs;    % reset your auto‐drop clock
-                continue                    % skip straight to next frame
+
+                % supposdly cutting out may help w/ frame issue 
+                % % % % lastDropTime = GetSecs;    % reset auto‐drop clock
+                % % % % continue                    % skip to next frame
             end
         end
 
-        % 3) automatic drop
+        % automatic drop
         dropInterval = S.levelFactor^(S.currentLevel - 1);
         if (GetSecs - lastDropTime) > dropInterval
             % try to move down one row
-            [didMove,tmpTrig] = movePiece(0, -1); % what is tmpTrig output?
+            [didMove,tmpTrig] = movePiece(0, -1);
             if didMove
-                % on *every* successful drop, send piece_drop
+                % on every successful drop send trig
                 dropTrig       = logEvent('piece_drop');
                 currentEEGTrig = dropTrig;
             elseif ~isnan(tmpTrig)
-                % collision→spawn new piece
+                % collision, so spawn new piece
                 currentEEGTrig = tmpTrig;
             end
             lastDropTime = GetSecs;
         end
 
 
-        % 4) draw + snapshot of full visible board (locked + falling)
+        % draw + snapshot full board
         drawGameState();
         Screen('Flip', window);
+                % clear the eeg port
+        WaitSecs(0.002);
+        % send trigger at flip 
+        if ~demoMode
+            if  ~isempty(ioObj)
+                io64(ioObj, address, 0);
+
+            end;end
         frameStamp   = GetSecs;
 
-        % Build exactly what was on screen:
-        visibleBoard = S.lockedMatrix;                   % all the settled blocks…
-        visibleBoard(S.currentPiece) = S.currentPieceID; % …plus the moving piece
+        % Build screen:
+        visibleBoard = S.lockedMatrix;                   % settled blocks
+        visibleBoard(S.currentPiece) = S.currentPieceID; % moving piece
 
         boardSnapshot(end+1) = struct( ...
             'timestamp', frameStamp, ...
             'board',     visibleBoard, ...
             'eegTrigs',  currentEEGTrig ...
             );
-
-        % 5) clear the port
-        % WaitSecs(0.002);
-        if ~demoMode
-            if  ~isempty(ioObj)
-                io64(ioObj, address, 0);
-
-            end;end
 
         % debug print
         if demoMode
@@ -247,9 +243,9 @@ try
         'eegTrigs',  currentEEGTrig);
 
     fprintf('Saved board snapshot for game %d.\n\n\n', expParams.p5.gameplayCount);
-   
+
     if ~demoMode
-        % — final pull & error‐check —
+        % % get final samps w/ light error
         rawF = eyetracker.get_gaze_data();
         if isa(rawF,'StreamError')
             warning('Final gaze error: %s', rawF.Message);
@@ -259,7 +255,7 @@ try
         for i = 1:numel(rawF)
             s = rawF(i);
 
-            % handle possible missing eye data
+            % handle missing data
             if isfield(s, 'LeftEye') && ~isempty(s.LeftEye) && isfield(s.LeftEye, 'GazePoint') && isfield(s.LeftEye.GazePoint, 'OnDisplayArea')
                 gazeX = s.LeftEye.GazePoint.OnDisplayArea(1);
                 gazeY = s.LeftEye.GazePoint.OnDisplayArea(2);
@@ -286,9 +282,7 @@ try
                 );
         end
 
-
-
-        % — stop recording & stamp Tobii clock at end —
+        % stop recording & stamp Tobii
         % eyetracker.stop_recording();
         % tRecordingEnd = eyetracker.get_system_time_stamp();
         tRecordingEnd = GetSecs;
@@ -297,12 +291,11 @@ try
         tRecordingEnd = GetSecs;
     end
 
-    % — compute QC loss metrics —
+    % QC
     lossL = mean([blockGazeData.PupilDiaL] == 0);
     lossR = mean([blockGazeData.PupilDiaR] == 0);
 
-
- gazeFile = fullfile(expParams.subjPaths.eyeDir, sprintf('%s_game%03d_gaze.mat', subjID, gameIdx));
+    gazeFile = fullfile(expParams.subjPaths.eyeDir, sprintf('%s_game%03d_gaze.mat', subjID, gameIdx));
 
     % record game so the wrapper can log it
     activInfo(end+1) = struct( ...
@@ -311,12 +304,11 @@ try
         'gazeFile',     gazeFile, ...
         'usedForReplay', false);
 
-
     % send game over
     DrawFormattedText(window, sprintf('Game Over!\n\nFinal Score: %d\n\nPlease wait.....', S.currentScore), 'center', 'center', [255 0 0]);
     Screen('Flip', window);
 
-    % save gaze file 
+    % save gaze file
     save(gazeFile, ...
         'blockGazeData', ...
         'tRecordingStart', ...
@@ -330,7 +322,7 @@ try
 catch ME
     fprintf(2, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
     fprintf(2, 'ERROR IN SCRIPT: %s\n', ME.stack(1).file); % where error occurred
-    fprintf(2, 'Function: %s, Line: %d\n', ME.stack(1).name, ME.stack(1).line); % function name with line
+    fprintf(2, 'Function: %s, Line: %d\n', ME.stack(1).name, ME.stack(1).line); % function w/ line
     fprintf(2, 'Error Message: %s\n', ME.message);
     fprintf(2, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
 
@@ -341,14 +333,13 @@ end % try end (for eye tracker)
 %======================HELPER SCRIPTS====================
 %========================================================
     function lastEEGTrig = logEvent(eventType, val1, val2)
-        % Helper to (1) record, (2) send, and (3) print every trigger
 
         if nargin < 2, val1 = ''; end
         if nargin < 3, val2 = ''; end
 
-        % 1) Append to eventLog with Tobii timestamp
+        % append to eventLog with Tobii timestamp
         sysTS   = GetSecs;
-        tobiiTS = NaN;
+        tobiiTS = sysTS;
         if ~demoMode
             tobiiTS = GetSecs;
         end
@@ -361,8 +352,7 @@ end % try end (for eye tracker)
             );
         eventLog(end+1) = newEntry;
 
-
-        % 2) If this event has an EEG code, send it out
+        % if event has EEG trig, send it 
         if isKey(p5_triggers, eventType)
             trigVal = p5_triggers(eventType);
 
@@ -372,9 +362,8 @@ end % try end (for eye tracker)
                     io64(ioObj, address, trigVal);
                 end;end
 
-            % 3) Print for debugging
-            fprintf('[LOGGED] Event: %-15s → %3d @ %.4f\n', ...
-                eventType, trigVal, GetSecs);
+            % print for debugging
+            fprintf('[LOGGED] Event: %-15s → %3d @ %.4f\n', eventType, trigVal, GetSecs()); % getsecs call was printing as "ans = " in cmd window. I think calling as a function () fixes this
 
             lastEEGTrig = trigVal;
         else
@@ -382,13 +371,12 @@ end % try end (for eye tracker)
         end
     end
 
-
     function spawnTrig = spawnNewPiece()
         % pick up IDs…
         S.currentPieceID = S.nextPieceID;
         S.nextPieceID    = randi(7);
 
-        % compute new linear indices for the 4 blocks
+        % get linear indices for 4 blocks
         shape = pieces(S.currentPieceID).shape;
         [h,w] = size(shape);
         [rIdx,cIdx] = find(shape);
@@ -398,17 +386,17 @@ end % try end (for eye tracker)
         absCols = baseCol + cIdx-1;
         newIdx  = sub2ind([boardH,boardW], absRows, absCols);
 
-        % spawn‐collision → game over
+        % game over check
         if any(S.lockedMatrix(newIdx))
             S.gameOver = true;
             spawnTrig = logEvent('game_over');
             return;
         end
 
-        % record only the falling piece
+        % record falling piece
         S.currentPiece = newIdx;
 
-        % pivot bookkeeping (unchanged)…
+        % pivot 
         shapePivot = pieces(S.currentPieceID).pivot;
         pivotRow   = baseRow + shapePivot(1) - 1;
         pivotCol   = baseCol + shapePivot(2) - 1;
@@ -416,8 +404,6 @@ end % try end (for eye tracker)
 
         spawnTrig = logEvent('piece_spawn', S.currentPieceID, '');
     end
-
-
 
     function [lastEEGTrig, didMove] = handleInput()
         lastEEGTrig = NaN;
@@ -450,14 +436,15 @@ end % try end (for eye tracker)
                 S.gameOver = true;
             end
 
-            % ── reset the drop-timer on any movement ──
+            % reset drop-timer on movement
             if didMove
                 lastDropTime = GetSecs;
             end
 
-            % ── wait for key release to avoid repeats ──
-            % KbReleaseWait;
-            WaitSecs(0.08);
+            %  wait for key release to avoid repeats
+            % KbReleaseWait; % prev commented out 
+            % WaitSecs(0.08); % cpu bounce 
+            WaitSecs(expParams.rule.keyRepeatInterval)
         end
     end
 
@@ -465,14 +452,14 @@ end % try end (for eye tracker)
         didMove     = false;
         lastEEGTrig = NaN;
 
-        % 1) decode current falling piece coords
+        % get current falling piece coords
         [rows, cols] = ind2sub([boardH,boardW], S.currentPiece);
 
-        % 2) proposed positions
+        % new coords
         newRows = rows + rowOffset;
         newCols = cols + colOffset;
 
-        % 3) bounds check
+        % boundary check 
         if any(newRows<1) || any(newRows>boardH) || any(newCols<1) || any(newCols>boardW)
             if rowOffset < 0
                 logEvent('piece_lock');              % lock
@@ -485,7 +472,7 @@ end % try end (for eye tracker)
             return
         end
 
-        % 4) collision vs locked
+        % collision & locked
         newIdx = sub2ind([boardH,boardW], newRows, newCols);
         if any(S.lockedMatrix(newIdx))
             if rowOffset < 0
@@ -497,11 +484,11 @@ end % try end (for eye tracker)
             return
         end
 
-        % 5) valid move → update falling piece
+        % update valid moves 
         S.currentPiece = newIdx;
         didMove        = true;
 
-        % ── update pivot so future rotates spin in place ──
+        % udate pivot for rotations 
         [pr, pc] = ind2sub([boardH,boardW], S.pivotBoardIdx);
         pr_new = pr + rowOffset;
         pc_new = pc + colOffset;
@@ -509,7 +496,7 @@ end % try end (for eye tracker)
         if pr_new >= 1 && pr_new <= boardH && pc_new >= 1 && pc_new <= boardW
             S.pivotBoardIdx = sub2ind([boardH,boardW], pr_new, pc_new);
         else
-            % out-of-bounds pivot would crash – so keep old pivot
+            % OB pivot will crash
         end
     end
 
@@ -517,37 +504,37 @@ end % try end (for eye tracker)
         didMove     = false;
         lastEEGTrig = NaN;
 
-        % (A) Get the four current block positions on the board
+        % get the four current block positions on the board
         [rows, cols] = ind2sub([boardH, boardW], S.currentPiece);
 
-        % (B) Where is the pivot right now?
+        % get pivot
         pivotBoardIdx = S.pivotBoardIdx;
         [pRow, pCol]  = ind2sub([boardH, boardW], pivotBoardIdx);
 
-        % (C) Compute each block's offset from the pivot…
+        % get block's offset from pivot
         relRows = rows - pRow;
         relCols = cols - pCol;
 
-        % (D) …rotate those offsets 90° CW
+        % rotate 90 deg CW
         newRelRows = -relCols;
         newRelCols =  relRows;
 
-        % (E) Translate back to absolute board coords
+        % get back to coords
         newRows = pRow + newRelRows;
         newCols = pCol + newRelCols;
 
-        % (F) Bounds‐check: must stay on the board
+        % bounds‐check
         if any(newRows < 1) || any(newRows > boardH) || any(newCols < 1) || any(newCols > boardW)
             return
         end
 
-        % (G) Collision‐check against locked blocks
+        % collision check placed blocks
         newIdx = sub2ind([boardH, boardW], newRows, newCols);
         if any(S.lockedMatrix(newIdx))
             return
         end
 
-        % (H) Commit the rotation
+        % finish rotation 
         S.currentPiece = newIdx;
         didMove        = true;
         lastEEGTrig    = logEvent('key_press_up_rotate');
@@ -559,20 +546,19 @@ end % try end (for eye tracker)
         fullRows = find(all(S.lockedMatrix,2));
         numCleared = numel(fullRows);
 
-
         if numCleared > 0
-            % 1) send the clear trigger
+            % send clear trigger
             lastEEGTrig = logEvent(sprintf('line_clear_%d', numCleared), numCleared, '');
 
-            % 2) update score & lines
+            % update score & lines
             S.currentLines = S.currentLines + numCleared;
             S.currentScore = S.currentScore + S.pointsVector(numCleared)*S.currentLevel;
 
-            % 3) clear and shift the board
+            % clear and shift the board
             S.lockedMatrix(fullRows,:) = [];
             S.lockedMatrix = [ S.lockedMatrix ; zeros(numCleared, boardW, 'uint8') ];
 
-            % 4) level-up if needed
+            % check levelup 
             if floor(S.currentLines/S.linesForLevelUp) >= S.currentLevel
                 S.currentLevel = S.currentLevel + 1;
             end
@@ -583,7 +569,7 @@ end % try end (for eye tracker)
     function drawGameState()
         boardWidth  = boardW;
         boardHeight = boardH;
-        blockSize   =     expParams.visual.blockSize;            % ← hard‐code your desired cell size
+        blockSize   =     expParams.visual.blockSize;            
         boardOutlineWidth = 5;
 
         boardRectX = (windowRect(3) - boardWidth*blockSize)/2;
@@ -608,17 +594,17 @@ end % try end (for eye tracker)
         % %     end
         % % end
         for r = 1:boardH
-        for c = 1:boardW
-            pid = S.lockedMatrix(r,c);
-            if pid > 0
-                x = boardRectX + (c-1)*blockSize;
-                y = boardRectY + (boardHeight-r)*blockSize;
-                b = [x y x+blockSize y+blockSize];
-    
-                color = S.pieceColors{pid};  % ← use assigned piece color
-                Screen('FillRect',  window, color, b);
-                Screen('FrameRect', window, [0 0 0], b, 1);
-            end
+            for c = 1:boardW
+                pid = S.lockedMatrix(r,c);
+                if pid > 0
+                    x = boardRectX + (c-1)*blockSize;
+                    y = boardRectY + (boardHeight-r)*blockSize;
+                    b = [x y x+blockSize y+blockSize];
+
+                    color = S.pieceColors{pid};  % ← use assigned piece color
+                    Screen('FillRect',  window, color, b);
+                    Screen('FrameRect', window, [0 0 0], b, 1);
+                end
             end
         end
 
@@ -633,20 +619,18 @@ end % try end (for eye tracker)
         % %     Screen('FillRect',  window, [127 127 127], b);
         % %     Screen('FrameRect', window, [0 0 0], b, 1);
         % % end
-        color = S.pieceColors{S.currentPieceID};  % ← use color for active piece
+        color = S.pieceColors{S.currentPieceID};  
         [rP, cP] = ind2sub([boardH,boardW], S.currentPiece);
         for i = 1:numel(rP)
             x = boardRectX + (cP(i)-1)*blockSize;
             y = boardRectY + (boardHeight-rP(i))*blockSize;
             b = [x y x+blockSize y+blockSize];
-        
+
             Screen('FillRect',  window, color, b);
             Screen('FrameRect', window, [0 0 0], b, 1);
         end
 
-
-        scoreText = sprintf('Score: %d\nLevel: %d\nLines: %d', ...
-            S.currentScore, S.currentLevel, S.currentLines);
+        scoreText = sprintf('Score: %d\nLevel: %d\nLines: %d', S.currentScore, S.currentLevel, S.currentLines);
         DrawFormattedText(window, scoreText, boardRect(3)+20, boardRect(2), [255 255 255]);
     end % draw game state end
 end % function end

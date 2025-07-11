@@ -31,7 +31,7 @@ while (GetSecs - breakStartTime) < maxBreakTime
     % NOTE: fixed 6/5/25, issue passing strings to ptb window. ' and
     % " or single and double quotes makes a difference for ptb and
     % what it does internalyl to the text string
-    breakText = sprintf('You''ve reached a SECTION break!! \n\n Required Break Time Remaining: %d seconds\n\n\n Maximum Break Time Remaining: %d seconds\n\nFlip the buzzer on the table NOW to get the experimenter\n', ceil(remainingRequired), ceil(remainingMax));
+    breakText = sprintf('You''ve reached a break!! \n\n Required Break Time Remaining: %d seconds\n\n\n Maximum Break Time Remaining: %d seconds\n\nFlip the buzzer on the table NOW to get the experimenter\n', ceil(remainingRequired), ceil(remainingMax));
 
     % Only allow continue after min break
     if remainingRequired <= 0

@@ -14,7 +14,6 @@
 %
 %-------------------------------------------------------
 function  snapshot = getBoardSnapshot(boardMatrix, currentTrigger)
-
 snapshot.board = boardMatrix;
 snapshot.trigger = currentTrigger;
 snapshot.timestamp = GetSecs;

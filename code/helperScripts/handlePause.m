@@ -11,14 +11,14 @@ function pauseDuration = handlePause(window, keys)
     % pause screen with options to resume or quit the experiment.
     % It returns the total duration of the pause if the experiment is resumed.
     
-    pauseDuration = 0; % Default to 0 if not paused
+    pauseDuration = 0; 
     [~, ~, keyCode] = KbCheck(-1);
 
-    if keyCode(keys.p) % Check if the 'p' key (defined in expParams) is down
+    if keyCode(keys.p) % check p 
         
-        pauseStartTime = GetSecs; % Record when the pause began
+        pauseStartTime = GetSecs;
         
-        % --- Draw Pause Screen with New Instructions ---
+        % new pause directions 
         Screen('TextSize', window, 32);
         Screen('TextFont', window, 'Arial');
         pauseText = 'Experiment Paused\n\nPress ENTER to continue\n\nPress ESC to quit';
@@ -27,25 +27,24 @@ function pauseDuration = handlePause(window, keys)
         
         KbReleaseWait(-1); % Wait for the 'p' key to be released
         
-        % --- Wait for either ENTER or ESC to be pressed ---
+        % wait 
         while true
             [keyIsDown, ~, keyCode] = KbCheck(-1);
             if keyIsDown
-                if keyCode(keys.enter) % User wants to continue
-                    break; % Exit the while loop to resume
+                if keyCode(keys.enter) 
+                    break; % exit while to resume
                     
-                elseif keyCode(keys.escape) % User wants to quit
-                    % Throw a specific error that the main wrapper will catch.
-                    % This triggers the graceful shutdown and data saving.
+                elseif keyCode(keys.escape) % User quit
+                    % Throw error up to wrapper 
                     error('USER_QUIT:ExperimentHalted', 'User pressed Escape key to quit from pause menu.');
                 end
             end
             WaitSecs(0.01); % Small wait to prevent hogging the CPU
         end
         
-        KbReleaseWait(-1); % Wait for the resume key (enter) to be released
+        KbReleaseWait(-1); % wait for resume 
         
-        % Calculate how long the pause lasted
+        % get pause length 
         pauseDuration = GetSecs - pauseStartTime;
     end
 end

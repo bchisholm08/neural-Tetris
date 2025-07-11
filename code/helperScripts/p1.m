@@ -13,47 +13,45 @@ function p1(subjID, demoMode, window, windowRect, expParams, ioObj, address, eye
 try %% main exp. try/C
     %% instruction screen call
     p1instruct(window, expParams);
-    
-   
-% begin eye tings
+    % begin eye tings
 
-gazeFile = fullfile(expParams.subjPaths.eyeDir, ...
-            sprintf('%s_p1_gaze.mat', subjID));
 
-% — a) init gaze buffer with both timestamps —
-blockGazeData = struct( ...
-'SystemTimeStamp',{}, ...  % Tobii SDK clock
-'DeviceTimeStamp',{}, ...  % Tobii device clock
-'GazeX',           {}, ...
-'GazeY',           {}, ...
-'PupilDiaL',       {}, ...
-'PupilDiaR',       {} );
-    tRecordingStart = NaN;
-    tRecordingEnd   = NaN;
+    gazeFile = fullfile(expParams.subjPaths.eyeDir, sprintf('%s_p1_gaze.mat', subjID));
 
-if ~demoMode
-    % — b) subscribe & flush any errors —
-    subResult = eyetracker.get_gaze_data();
-    if isa(subResult,'StreamError')
-        warning('Tobii subscription error: %s', subResult.Message);
+    % init gaze
+    blockGazeData = struct( ...
+        'SystemTimeStamp',{}, ...  % Tobii SDK clock
+        'DeviceTimeStamp',{}, ...  % Tobii device clock
+        'GazeX',           {}, ...
+        'GazeY',           {}, ...
+        'PupilDiaL',       {}, ...
+        'PupilDiaR',       {} );
+    tDataCollectionBegin = NaN;
+    tDataCollectionEnd   = NaN;
+
+    if ~demoMode
+        % open eyes and clear 
+        subResult = eyetracker.get_gaze_data();
+        if isa(subResult,'StreamError')
+            warning('Tobii subscription error: %s', subResult.Message);
+        end
+        pause(0.2);                   % start stream
+        eyetracker.get_gaze_data();   % clear junk
+
+        % start data stream and get time 
+        % tRecordingStart = eyetracker.get_system_time_stamp();
+        tGameStart      = GetSecs;
+        tDataCollectionBegin = tGameStart;
     end
-    pause(0.2);                   % let the stream start
-    eyetracker.get_gaze_data();   % clear junk
-
-    % — c) mark "recording" start with timestamp only —
-    % tRecordingStart = eyetracker.get_system_time_stamp();
-    tGameStart      = GetSecs;
-end
 
 
-if ~demoMode
-    % flush stray samples & catch errors
-    raw0 = eyetracker.get_gaze_data();
-    if isa(raw0,'StreamError')
-        warning('Pre-loop gaze flush error: %s', raw0.Message);
+    if ~demoMode
+        % flush stray samples & catch errors
+        raw0 = eyetracker.get_gaze_data();
+        if isa(raw0,'StreamError')
+            warning('Pre-loop gaze flush error: %s', raw0.Message);
+        end
     end
-end	
-
 
     pieces = getTetrino(expParams);
     nPieces = length(pieces);
@@ -62,16 +60,23 @@ end
     % returns random list of numbers from 1 to 7, for the number of totalP1Trials input
 
     if length(presentationPieceOrder) ~= expParams.p1.options.totalP1Trials
-        % fatal experiment error, cgit aannot continue
+        % fatal experiment error, cannot continue
         error('ERROR: pieceOrder (%d) DNE expected trial count (%d)', length(presentationPieceOrder), expParams.p1.options.totalP1Trials);
     end
 
-    %% block loop       should really have a break at AT LEAST halfway thru 490 trials...let subjects rest their eyes etc.
+    trig = getTrig("section_start");
+    fprintf(['section_start trigger sent: %d\n'],trig);
+    if ~demoMode && ~isempty(ioObj)
+        io64(ioObj, address, trig);
+    end
+    WaitSecs(2);
+
+    %% block loop should really have a break at AT LEAST halfway thru 490 trials...let subjects rest their eyes etc.
     for block = 1:expParams.p1.options.blocks
         %% trial loop
         for t = 1:expParams.p1.options.trialsPerBlock
 
-            % --- Get Trial Information ---
+            % trial params 
             trialIndex = (block - 1) * expParams.p1.options.trialsPerBlock + t;
             pieceID = presentationPieceOrder(trialIndex);
             pieceName = pieces(pieceID).name; % More direct way to get piece name
@@ -81,45 +86,47 @@ end
             iti = expParams.p1.options.itiFcn();
             itiDuration = iti;
 
-            % --- 1. Fixation Period ---
+            % handle fixation 
 
             % Prepare the fixation cross frame in the back buffer
-            drawFixation(window, windowRect, expParams); %
+            drawFixation(window, windowRect, expParams); 
             % Flip to show the fixation cross and get its onset time
             fixationOnset = Screen('Flip', window);
 
             % Wait for the duration of the fixation period
             WaitSecs(expParams.p1.options.fixationDuration);
 
-if ~demoMode
-    raw = eyetracker.get_gaze_data();
-    if isa(raw,'StreamError')
-        warning('Mid-loop gaze error: %s', raw.Message);
-        raw = [];
-    end
-    for i = 1:numel(raw)
-        s = raw(i);
+            if ~demoMode
+                raw = eyetracker.get_gaze_data();
+                if isa(raw,'StreamError')
+                    warning('Mid-loop gaze error: %s', raw.Message);
+                    raw = []; 
+                end
+                for i = 1:numel(raw)
+                    s = raw(i);
 
-        blockGazeData(end+1) = struct( ...
-    'SystemTimeStamp', s.SystemTimeStamp, ...
-    'DeviceTimeStamp', s.DeviceTimeStamp, ...
-    'GazeX',           s.LeftEye.GazePoint.OnDisplayArea(1), ...
-    'GazeY',           s.LeftEye.GazePoint.OnDisplayArea(2), ...
-    'PupilDiaL',       s.LeftEye.Pupil.Diameter, ...
-    'PupilDiaR',       s.RightEye.Pupil.Diameter ...
-);
+                    blockGazeData(end+1) = struct( ...
+                        'SystemTimeStamp', s.SystemTimeStamp, ...
+                        'DeviceTimeStamp', s.DeviceTimeStamp, ...
+                        'GazeX',           s.LeftEye.GazePoint.OnDisplayArea(1), ...
+                        'GazeY',           s.LeftEye.GazePoint.OnDisplayArea(2), ...
+                        'PupilDiaL',       s.LeftEye.Pupil.Diameter, ...
+                        'PupilDiaR',       s.RightEye.Pupil.Diameter ...
+                        );
+                end
+            end
 
-    end
-end	
+            % % Stimulus 
 
-            % --- 2. Stimulus Presentation ---
-            % Prepare the piece frame in the back buffer
-            Screen('DrawTexture', window, pieces(pieceID).tex);
-            % Flip at the exact moment the fixation period ends. This swaps the fixation
-            % for the piece instantly. Record the timestamp of this event.
+            % % get piece for flip
+            dstRect = CenterRectOnPoint(pieces(pieceID).rect, expParams.screen.center(1), expParams.screen.center(2));
+            Screen('DrawTexture', window, pieces(pieceID).tex, [], dstRect);
+            
+            % % Flip at exact moment fixation ends. swaps fixation
+            % % instantly. Record the timestamp of this event
             stimOnset = Screen('Flip', window);
 
-            % Send EEG trigger precisely at stimulus onset
+            % send trig at flip 
             if ~demoMode && ~isempty(ioObj)
                 io64(ioObj, address, eegTrigger);
             end
@@ -130,16 +137,13 @@ end
             % piece is on screen. pause for length of presentation duration.
             WaitSecs(expParams.p1.options.stimulusDuration);
 
-
-            % --- 3. Inter-Trial Interval (ITI) ---
-            % Prepare the ITI frame (which is just the fixation cross again)
+            % iti
             drawFixation(window, windowRect, expParams); %
-            % Flip at the exact moment the stimulus duration ends. This swaps the
-            % piece for the fixation cross instantly.
+            
             itiOnset = Screen('Flip', window);
 
-            % Log behavioral data for this trial.
-            % ordering is directly reflected in .csv file
+            % Log behavioral data 
+            % ordering is 1:1 to .csv file cols
             data(trialIndex).block = block;
             data(trialIndex).trial = t;
             data(trialIndex).pieceID = pieceID;
@@ -150,25 +154,28 @@ end
             data(trialIndex).eegTrigger = eegTrigger;
             data(trialIndex).trialDuration = stimOnset - fixationOnset;
 
-
             % during this time check for pause
             handlePause(window, expParams.keys);
 
-            % The fixation cross is now on screen. Wait for the rest of the ITI.
+            % wait for duration of ITI 
             WaitSecs(itiDuration);
 
 
 
-        end % --- End of trial loop ---
-        % no breaks in p1
+        end % end trial loop
+
+        
+        
     end % p1 block end
-
-
-
-    % not sure if this will be useful or not--too simple to NOT include
-    expParams.p1.options.sectionDoneFlag = 1;
     
-        if ~demoMode
+trig = getTrig('section_end');
+fprintf(['section_end trigger sent: %d\n'],trig);
+    if ~demoMode && ~isempty(ioObj)
+        io64(ioObj, address, trig);
+    end
+WaitSecs(2);
+
+    if ~demoMode
         % — final pull & error‐check —
         rawF = eyetracker.get_gaze_data();
         if isa(rawF,'StreamError')
@@ -210,26 +217,30 @@ end
         % — stop recording & stamp Tobii clock at end —
         % eyetracker.stop_recording();
         % tRecordingEnd = eyetracker.get_system_time_stamp();
-        tRecordingEnd = GetSecs;
+        tDataCollectionEnd = GetSecs;
     else
         WaitSecs(1);  % demo stub
-        tRecordingEnd = GetSecs;
+        tDataCollectionEnd = GetSecs;
     end
-	
-	
+
+
     % — compute QC loss metrics —
     lossL = mean([blockGazeData.PupilDiaL] == 0);
     lossR = mean([blockGazeData.PupilDiaR] == 0);
-	
-	
-	% save gaze file 
-    save(gazeFile, ... % named @ top of script 
+
+
+    % save gaze file
+    save(gazeFile, ... % named @ top of script
         'blockGazeData', ...
-        'tRecordingStart', ...
-        'tRecordingEnd', ...
+        'tDataCollectionBegin', ...
+        'tDataCollectionEnd', ...
         'lossL', 'lossR', ...
         'demoMode', ...
-        '-v7.3');
+        '-v7.3'); % v7.3 more effecient saving 
+
+    % not sure if this will be useful or not--too simple to NOT include
+    expParams.p1.options.sectionDoneFlag = 1;
+
     % save data
     saveDat('p1', subjID, data, expParams, demoMode);
 

@@ -32,8 +32,8 @@ h = expParams.screen.height;
 % pull real window and dimensions
 
 % for building tableaus
-blockSize = 50; % single piece-section (px)
-border = 2;     % border width (px)
+blockSize = expParams.visual.blockSize; % single piece-section (px)
+border = expParams.visual.border;     % border width (px)
 
 tableaus = struct('piece', {}, 'condition', {}, 'board', {});
 
@@ -169,13 +169,12 @@ tableaus(end+1) = struct('piece', 'T', 'condition', 'does_not_fit', 'board', ...
     1 1 1 1 1 1 1 1 1 1; ...
     1 1 0 1 0 1 1 0 1 1; ...
     1 1 1 1 1 0 1 1 1 1]);
-
+%================================
+%================================
 %% create textures to pass to expParams
 for t = 1:length(tableaus)
     board = tableaus(t).board;
     [rows, cols] = size(board);
-
-    % build new img matrix for white border around tableaus        img = zeros(rows * blockSize, cols * blockSize, 3);
 
     padding = 5;  % space between pieces and border
     imgHeight = rows * blockSize + 2 * padding;
@@ -184,8 +183,8 @@ for t = 1:length(tableaus)
     % build new img matrix for blocks + white border
 img = zeros(imgHeight, imgWidth, 3, 'uint8');
 
-% paint the blocks in gray (use expParams.colors.gray)
-blockCol = reshape(uint8(expParams.colors.gray),1,1,3);  
+% blockCol = reshape(uint8(expParams.colors.white),1,1,3);  
+blockCol = expParams.colors.white;  
 for r = 1:rows
     for c = 1:cols
         if board(r,c) == 1
@@ -198,13 +197,13 @@ for r = 1:rows
     end
 end
 
-% draw a 3-sided border 
-white = reshape(uint8(expParams.colors.white),1,1,3);          % [255 255 255]
-img(end-border+1:end,     :, :) = repmat(white, border,    imgWidth);  % bottom
-img(:, 1:border,          :) = repmat(white, imgHeight,  border);    % left
-img(:, end-border+1:end,  :) = repmat(white, imgHeight,  border);    % right
+% draw 3-sided border 
+borderGray = reshape(uint8(expParams.colors.gray),1,1,3);          % white [255 255 255] 
+img(end-border+1:end,     :, :) = repmat(borderGray, border,    imgWidth);  % bottom
+img(:, 1:border,          :) = repmat(borderGray, imgHeight,  border);    % left
+img(:, end-border+1:end,  :) = repmat(borderGray, imgHeight,  border);    % right
 
-% make the PTB texture
+% make PTB texture
 tex = Screen('MakeTexture', window, img);
 
     texRect = [0 0 size(img, 2) size(img, 1)];
@@ -214,9 +213,7 @@ tex = Screen('MakeTexture', window, img);
     tableaus(t).rect = tableauRect;
 end
 
-%% add garbage tableau to each of the 7 pieces
-%FIXME currently this produces a fully filled board. What I actually want,
-% is a rectangle with the word "GARBAGE" centered
+%% add garbage tableau to each piece
 pieceNames = {'I', 'Z', 'O', 'S', 'J', 'L', 'T'};
 garbageBoard = zeros(4, 10);  % empty board 
 
@@ -230,7 +227,6 @@ for i = 1:length(pieceNames)
         );
 end
 
-% get PTB garbo textures
 newStartIdx = length(tableaus) - numel(pieceNames) + 1;
 for t = newStartIdx:length(tableaus)
     rows = size(tableaus(t).board,1);
@@ -250,13 +246,13 @@ img(:, 1:border,     :)          = 1;
 img(:, end-border+1:end, :)      = 1;
 
     % make texture
-    tex    = Screen('MakeTexture', window, uint8(img*255));
+    tex    = Screen('MakeTexture', window, uint8(img*255)); % coding to white? 
     texRect = [0 0 imgW imgH];
     tableauRect = CenterRectOnPoint(texRect, cx, screenY - imgH/2 - 40);
 
     tableaus(t).tex  = tex;
     tableaus(t).rect = tableauRect;
 end
-% save tableaus to envir.
+% save tableaus to environment
 save('tableaus.mat', 'tableaus');
 end

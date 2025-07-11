@@ -11,57 +11,50 @@
 function p2(subjID, demoMode, expParams, ioObj, address, eyetracker)
 
 
-    window     = expParams.screen.window;
-    windowRect = expParams.screen.windowRect;
-    cx = expParams.screen.center(1);
-    cy = expParams.screen.center(2);
-    w = expParams.screen.width;
-    h = expParams.screen.height;
-
-
+window     = expParams.screen.window;
+windowRect = expParams.screen.windowRect;
+cx = expParams.screen.center(1);
+cy = expParams.screen.center(2);
+w = expParams.screen.width;
+h = expParams.screen.height;
 
 try % begin try for experiment after init exp
-% begin eye tings
+    % begin eye tings
+    gazeFile = fullfile(expParams.subjPaths.eyeDir, sprintf('%s_p2_gaze.mat', subjID));
 
-gazeFile = fullfile(expParams.subjPaths.eyeDir, ...
-            sprintf('%s_p2_gaze.mat', subjID));
-
-% — a) init gaze buffer with both timestamps —
-blockGazeData = struct( ...
-'SystemTimeStamp',{}, ...  % Tobii SDK clock
-'DeviceTimeStamp',{}, ...  % Tobii device clock
-'GazeX',           {}, ...
-'GazeY',           {}, ...
-'PupilDiaL',       {}, ...
-'PupilDiaR',       {} );
+    % init gaze
+    blockGazeData = struct( ...
+        'SystemTimeStamp',{}, ...  % Tobii SDK clock
+        'DeviceTimeStamp',{}, ...  % Tobii device clock
+        'GazeX',           {}, ...
+        'GazeY',           {}, ...
+        'PupilDiaL',       {}, ...
+        'PupilDiaR',       {} );
     tRecordingStart = NaN;
     tRecordingEnd   = NaN;
 
-if ~demoMode
-    % — b) subscribe & flush any errors —
-    subResult = eyetracker.get_gaze_data();
-    if isa(subResult,'StreamError')
-        warning('Tobii subscription error: %s', subResult.Message);
+    if ~demoMode
+        % open Tobii & flush errors
+        subResult = eyetracker.get_gaze_data();
+        if isa(subResult,'StreamError')
+            warning('Tobii subscription error: %s', subResult.Message);
+        end
+        pause(0.2);                   % stack samples
+        eyetracker.get_gaze_data();   % clear junk
+
+        % mark start
+        % tRecordingStart = eyetracker.get_system_time_stamp();
+        tGameStart      = GetSecs;
     end
-    pause(0.2);                   % let the stream start
-    eyetracker.get_gaze_data();   % clear junk
-
-    % — c) mark "recording" start with timestamp only —
-    % tRecordingStart = eyetracker.get_system_time_stamp();
-    tGameStart      = GetSecs;
-end
 
 
-if ~demoMode
-    % flush stray samples & catch errors
-    raw0 = eyetracker.get_gaze_data();
-    if isa(raw0,'StreamError')
-        warning('Pre-loop gaze flush error: %s', raw0.Message);
+    if ~demoMode
+        % flush stray samples & catch errors
+        raw0 = eyetracker.get_gaze_data();
+        if isa(raw0,'StreamError')
+            warning('Pre-loop gaze flush error: %s', raw0.Message);
+        end
     end
-end	
-
-
-
 
     %% Section 2: Tableaus and contexts
     fprintf('p2: Initializing and pre-generating stimulus sequence...\n');
@@ -87,21 +80,22 @@ end
     tableauConditions = {'fit_complete', 'fit_does_not_complete', 'does_not_fit'};
     numConditions = length(tableauConditions);
 
+    % check div
     if mod(expParams.p2.options.trialsPerBlock, numConditions) ~= 0
         error('p2: trialsPerBlock (%d) must be divisible by the number of conditions (%d).', expParams.p2.options.trialsPerBlock, numConditions);
     end
 
-    % trials per block = 210, numConditions = 3
     trialsPerConditionPhase = expParams.p2.options.trialsPerBlock / numConditions;
 
     if mod(trialsPerConditionPhase, 2) ~= 0
         error('p2: trialsPerConditionPhase (%d) must be an even number for a 50/50 split.', trialsPerConditionPhase);
     end
 
+    % "congruent" and "non congruent" trials
     numTargetTrials = trialsPerConditionPhase / 2;
     numNonTargetTrials = trialsPerConditionPhase / 2;
 
-    % Pre-allocate and Build the Sequence
+    % preallocate and build
     stimulusSequence = repmat(struct(), totalTrials, 1);
     shuffledBlockOrder = randperm(nPieces);
     overallTrialCounter = 0;
@@ -145,12 +139,12 @@ end
             end
         end
     end
-    fprintf('p2: Pre-generated stimulus sequence created with %d total trials.\n', totalTrials);
+    % assert stim seq expParams trial total
+    % assert();
+    %% Execute Sequence ---
+    fprintf('p2: Beginning data collection...\n');
 
-    %% --- Section 2: Execute the Pre-Generated Sequence ---
-    fprintf('p2: Beginning experiment and data collection...\n');
-
-    % Initialize blockData for behavioral saving
+    % init blockData for behavioral data
     blockData = repmat(struct(), length(stimulusSequence), 1);
 
     currentBlock = 0; % track block changes
@@ -159,34 +153,40 @@ end
     % initialize a block struct for pupil data
     % blockGazeData = struct('DeviceTimeStamp',{}, 'Left',{}, 'Right',{}, 'Pupil',{});
 
-    % mega stimulus sequence loop 
-    % FIXME add quartile breaks? 
+    % mega stimulus sequence loop
+    % FIXME add quartile breaks?
+    trig = getTrig("section_start");
+    fprintf(['section_start trigger sent: %d\n'],trig);
+    if ~demoMode && ~isempty(ioObj)
+        io64(ioObj, address, trig);
+    end
+    WaitSecs(2);
     for i = 1:length(stimulusSequence) % use 'i' counter for stimuli
-        % begin pupillometry data collection 
+        % begin pupillometry data collection
 
-if ~demoMode
-    raw = eyetracker.get_gaze_data();
-    if isa(raw,'StreamError')
-        warning('Mid-loop gaze error: %s', raw.Message);
-        raw = [];
-    end
-    for i = 1:numel(raw)
-        s = raw(i);
+        if ~demoMode
+            raw = eyetracker.get_gaze_data();
+            if isa(raw,'StreamError')
+                warning('Mid-loop gaze error: %s', raw.Message);
+                raw = [];
+            end
+            for i = 1:numel(raw)
+                s = raw(i);
 
-        blockGazeData(end+1) = struct( ...
-    'SystemTimeStamp', s.SystemTimeStamp, ...
-    'DeviceTimeStamp', s.DeviceTimeStamp, ...
-    'GazeX',           s.LeftEye.GazePoint.OnDisplayArea(1), ...
-    'GazeY',           s.LeftEye.GazePoint.OnDisplayArea(2), ...
-    'PupilDiaL',       s.LeftEye.Pupil.Diameter, ...
-    'PupilDiaR',       s.RightEye.Pupil.Diameter ...
-);
+                blockGazeData(end+1) = struct( ...
+                    'SystemTimeStamp', s.SystemTimeStamp, ...
+                    'DeviceTimeStamp', s.DeviceTimeStamp, ...
+                    'GazeX',           s.LeftEye.GazePoint.OnDisplayArea(1), ...
+                    'GazeY',           s.LeftEye.GazePoint.OnDisplayArea(2), ...
+                    'PupilDiaL',       s.LeftEye.Pupil.Diameter, ...
+                    'PupilDiaR',       s.RightEye.Pupil.Diameter ...
+                    );
 
-    end
-end	
+            end
+        end
         trialInfo = stimulusSequence(i); % get curr 'i' from stimuli
 
-        % --- Handle Start-of-Block Tasks (e.g., break, setting current tableau texture) ---
+        % start of block tasks
         if trialInfo.blockNum ~= currentBlock || trialInfo.phaseNum ~= currentPhase
             if trialInfo.blockNum ~= currentBlock
                 currentBlock = trialInfo.blockNum;
@@ -201,7 +201,7 @@ end
         % get struct w/ piece texture
         stimulusPieceStruct = pieces(strcmp({pieces.name}, trialInfo.stimulusPieceName));
 
-        % 1. Fixation Period (Tableau + Fixation)
+        % fixation
 
         Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
 
@@ -215,9 +215,7 @@ end
         iti = expParams.p2.options.itiFcn();
         WaitSecs(iti);
 
-
-
-        % 2. Stimulus Presentation (Tableau + Piece)
+        % Stimulus Presentation (Tableau + Piece)
 
         % draw tableau for phase, calculate piece centering. Draw stimulus
         Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
@@ -226,16 +224,17 @@ end
         % draw stimulus ontop of tableau
         Screen('DrawTexture', window, stimulusPieceStruct.tex, [], stimulusPieceRect);
 
-        % flip buffers when fixation ends. Record time of appearance
+        % get stim onset time
         stimOnset = Screen('Flip', window);
 
-        % send EEG trigger immediately after piece presentation
-        if ~demoMode && ~isempty(ioObj), io64(ioObj, address, trialInfo.eegTrigger); end
+        if ~demoMode && ~isempty(ioObj)
+            io64(ioObj, address, trialInfo.eegTrigger)
+        end
 
         % tableau and piece are visible. Pause script for stimulus presentation duration
         WaitSecs(expParams.p2.options.stimulusDuration);
 
-        % 3. Inter-Trial Interval (ITI) (Tableau + Fixation)
+        % handle ITI
 
         % prepare ITI on buffer, draw constant tableau for phase
         Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
@@ -246,10 +245,7 @@ end
         % flip buffers once fixation duration ends. Replace stimulus w/ fixation
         Screen('Flip', window);
 
-        % 4. Data Collection (during ITI)
-    
-    
-
+        % collect data in ITI
         % Log BEHAVIORAL data
         blockData(i).block = trialInfo.blockNum;
         blockData(i).trial = trialInfo.trialNumOverall;
@@ -261,28 +257,27 @@ end
         blockData(i).stimOnset = stimOnset;
         blockData(i).eegTrigger = trialInfo.eegTrigger;
 
-        % before we wait for the ITI, check for a pause
+        % before ITI, check for pause
         handlePause(window, expParams.keys);
 
-        % FIXME TIMING BUG 
-        WaitSecs(0.7 + rand * 0.4); % Remainder of ITI
-        % append recent gazeData 
-
-
-        
-
-end % end of stimulus sequence 
-
-        %% --- Save BEHAVIORAL data at the very end ---
-        fprintf('p2: Section complete. Saving behavioral data...\n');
-        expParams.p2.stimulusSequence = stimulusSequence;
-        expParams.p2.options.sectionDoneFlag = 1;
+        % append recent gazeData
+    end % end of stimulus sequence
+    %% save BEHAVIORAL data at the very end
+    trig = getTrig('section_end');
+    fprintf(['section_end trigger sent: %d\n'],trig);
+    if ~demoMode && ~isempty(ioObj)
+        io64(ioObj, address, trig);
+    end
+    WaitSecs(2);
+    fprintf('p2: Section complete. Saving behavioral data...\n');
+    expParams.p2.stimulusSequence = stimulusSequence;
+    expParams.p2.options.sectionDoneFlag = 1;
 
     % save data at the very end
     saveDat('p2', subjID, blockData, expParams, demoMode);
 
     if ~demoMode
-        % — final pull & error‐check —
+        % final data and light error handling
         rawF = eyetracker.get_gaze_data();
         if isa(rawF,'StreamError')
             warning('Final gaze error: %s', rawF.Message);
@@ -319,8 +314,7 @@ end % end of stimulus sequence
                 );
         end
 
-
-        % — stop recording & stamp Tobii clock at end —
+        % stop recording, get stamp
         % eyetracker.stop_recording();
         % tRecordingEnd = eyetracker.get_system_time_stamp();
         tRecordingEnd = GetSecs;
@@ -328,22 +322,20 @@ end % end of stimulus sequence
         WaitSecs(1);  % demo stub
         tRecordingEnd = GetSecs;
     end
-	
-	
-    % — compute QC loss metrics —
+
+    % qc
     lossL = mean([blockGazeData.PupilDiaL] == 0);
     lossR = mean([blockGazeData.PupilDiaR] == 0);
-	
-	
-	% save gaze file 
-    save(gazeFile, ... % named @ top of script 
+
+
+    % save gaze file
+    save(gazeFile, ...
         'blockGazeData', ...
         'tRecordingStart', ...
         'tRecordingEnd', ...
         'lossL', 'lossR', ...
         'demoMode', ...
         '-v7.3');
-
 
 catch ME
     fprintf(2, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');

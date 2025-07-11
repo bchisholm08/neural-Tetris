@@ -1,3 +1,12 @@
+%-------------------------------------------------------
+% Author: Brady M. Chisholm
+% University of Minnesota Twin Cities, Dpt. of Neuroscience
+% Date: 7.8.2025
+%
+% Description: Facilitates playback of one Tetris game with no player control.
+% This also includes long with eye tracking data and EEG triggers when not in demo mode. 
+%
+%-------------------------------------------------------
 function playBackGame(snapshotFile, expParams)
 window = expParams.screen.window;
 windowRect = expParams.screen.windowRect;
@@ -13,14 +22,31 @@ gameIdx    = expParams.p5.gameplayCount;
 % Load snapshot struct from .mat
 data = load(snapshotFile);
 
-snapshots = data.boardSnapshot;  % or change field name accordingly
+snapshots = data.boardSnapshot; 
+fprintf('First EEG Trigger: %d | Last EEG Trigger: %d\n', snapshots(1).eegTrigs, snapshots(end).eegTrigs);
+
+
+if isempty(snapshots(1).eegTrigs) || snapshots(1).eegTrigs ~= 101
+    fakeStart = snapshots(1);
+    fakeStart.eegTrigs = 101;
+    fakeStart.timestamp = snapshots(1).timestamp - 0.001;  % 1 ms before first frame
+    snapshots = [fakeStart, snapshots];
+end
+
+% Check and insert missing final EEG trigger (124)
+if isempty(snapshots(end).eegTrigs) || snapshots(end).eegTrigs ~= 124
+    fakeEnd = snapshots(end);
+    fakeEnd.eegTrigs = 124;
+    fakeEnd.timestamp = snapshots(end).timestamp + 0.001;  % 1 ms after last frame
+    snapshots = [snapshots, fakeEnd];
+end
 
 % begin eye tings
 
 gazeFile = fullfile(expParams.subjPaths.eyeDir, ...
             sprintf('%s_gameReplay%03d_gaze.mat', subjID, gameIdx));
 
-% — a) init gaze buffer with both timestamps —
+% init gaze struct
 blockGazeData = struct( ...
 'SystemTimeStamp',{}, ...  % Tobii SDK clock
 'DeviceTimeStamp',{}, ...  % Tobii device clock
@@ -32,19 +58,18 @@ blockGazeData = struct( ...
     tRecordingEnd   = NaN;
 
 if ~demoMode
-    % — b) subscribe & flush any errors —
+    % open & flush any errors
     subResult = eyetracker.get_gaze_data();
     if isa(subResult,'StreamError')
         warning('Tobii subscription error: %s', subResult.Message);
     end
-    pause(0.2);                   % let the stream start
+    pause(0.2);                   % let data stack
     eyetracker.get_gaze_data();   % clear junk
 
-    % — c) mark "recording" start with timestamp only —
+    %  start with timestamp 
     % tRecordingStart = eyetracker.get_system_time_stamp();
     tGameStart      = GetSecs;
 end
-
 
 if ~demoMode
     % flush stray samples & catch errors
@@ -54,12 +79,11 @@ if ~demoMode
     end
 end	
 
-
-% Extract timing
+% get timing
 times = [snapshots.timestamp];
 delays = [0, diff(times)];
 
-% Set up screen (FIXME: PULL FROM expParams) 
+% set up screen (FIXME: PULL FROM expParams) 
 blockSize   = expParams.visual.blockSize;
 boardWidth  = expParams.visual.boardW;
 boardHeight = expParams.visual.boardH;
@@ -67,7 +91,7 @@ boardX      = (windowRect(3) - boardWidth * blockSize) / 2;
 boardY      = (windowRect(4) - boardHeight * blockSize) / 2;
 boardRect   = [boardX, boardY, boardX + boardWidth*blockSize, boardY + boardHeight*blockSize];
 
-try % begin try for eye 
+try % begin try for eye data
 
 if ~demoMode
     raw = eyetracker.get_gaze_data();
@@ -91,14 +115,25 @@ if ~demoMode
 end	
 
 for k = 1:length(snapshots) % for length of snapshots...(not frames--as a matter of fact MORE precise than frame. This is not an issue until it is (i.e. taking 120 seconds to save a .mat snapshot file) 
-        % eye data 
+        
+    % handle pause
+    pauseDur = handlePause(window, expParams.keys);
+    if isempty(pauseDur)
+        pauseDur = 0;
+    end
+
+    if pauseDur > 0
+        lastDropTime = lastDropTime + pauseDur;
+    end
+    
+    % eye data 
     board = snapshots(k).board;
 
     % Draw board
     Screen('FillRect', window, [0 0 0]);  % Clear
 
-    % draw board frame 
-    Screen('FrameRect', window, [255 255 255], boardRect, 5);
+    % 
+    Screen('FrameRect', window, expParams.colors.gray, boardRect, 5);
        for r = 1:boardHeight
             for c = 1:boardWidth
                 pieceID = board(r,c); % r,c
@@ -107,28 +142,30 @@ for k = 1:length(snapshots) % for length of snapshots...(not frames--as a matter
                     y = boardY + (boardHeight - r)*blockSize;
                     blockRect = [x, y, x+blockSize, y+blockSize];
 
-                    blockColor = expParams.colors.piece; % should be gray                   
+                    blockColor = expParams.colors.white; % uint 128                   
 
                     Screen('FillRect', window, blockColor, blockRect);
                     Screen('FrameRect', window, [0 0 0], blockRect, 1); % black border
                 end
             end
-        end
+       end
 
-% send triggers during replay 
+
+    % find our trigger
     replayTrig = snapshots(k).eegTrigs;
+
+            
+    Screen('Flip', window);
+    % send trigger at replay flip 
     if ~isempty(replayTrig) && ~isnan(replayTrig)
         if ~demoMode && ~isempty(ioObj)
-        % send to port
+        
         io64(ioObj, address, replayTrig + 100);
         end 
-        % trig debugging 
-        fprintf('[REPLAY] Trigger → %3d @ %.4f\n', replayTrig, GetSecs); % triggers have 100 added 
+        
+        fprintf('[REPLAY] Trigger → %3d @ %.4f\n', replayTrig + 100, GetSecs); 
         
     end
-
-    % add EEG triggers @ flip? 
-    Screen('Flip', window);
 
     % Wait for frame delay (hint as to sampling rate and FPS we actually capture) 
 
@@ -138,9 +175,8 @@ for k = 1:length(snapshots) % for length of snapshots...(not frames--as a matter
 
 end % snapshots replay loop end
 
-
   if ~demoMode
-        % — final pull & error‐check —
+        % final data and light error
         rawF = eyetracker.get_gaze_data();
         if isa(rawF,'StreamError')
             warning('Final gaze error: %s', rawF.Message);
@@ -150,7 +186,7 @@ end % snapshots replay loop end
         for i = 1:numel(rawF)
             s = rawF(i);
 
-            % handle possible missing eye data
+            % handle missing eye dat
             if isfield(s, 'LeftEye') && ~isempty(s.LeftEye) && isfield(s.LeftEye, 'GazePoint') && isfield(s.LeftEye.GazePoint, 'OnDisplayArea')
                 gazeX = s.LeftEye.GazePoint.OnDisplayArea(1);
                 gazeY = s.LeftEye.GazePoint.OnDisplayArea(2);
@@ -178,8 +214,7 @@ end % snapshots replay loop end
         end
 
 
-        % — stop recording & stamp Tobii clock at end —
-        % eyetracker.stop_recording();
+        % stop & timestmp 
         % tRecordingEnd = eyetracker.get_system_time_stamp();
         tRecordingEnd = GetSecs;
     else
@@ -188,7 +223,7 @@ end % snapshots replay loop end
     end
 	
 	
-    % — compute QC loss metrics —
+    % qc
     lossL = mean([blockGazeData.PupilDiaL] == 0);
     lossR = mean([blockGazeData.PupilDiaR] == 0);
 	
@@ -201,7 +236,6 @@ end % snapshots replay loop end
         'lossL', 'lossR', ...
         'demoMode', ...
         '-v7.3');
-
 
 catch ME
     fprintf(2, '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');

@@ -23,7 +23,7 @@ function pieces = getTetrino(expParams)
 
     % pieces = struct('tex', {}, 'rect', {}, 'pID', {}, 'name', {});
     pieces = struct('tex', {}, 'rect', {}, 'pID', {}, 'name', {}, 'shape', {}, 'coords', {}, 'pivot', {});
-    blockSize = expParams.visual.blockSize; % single piece-section (px) 
+    blockSize = expParams.visual.blockSize; 
     border = expParams.visual.border;     % border width (px)
 
     for p = 1:length(shapes)
@@ -40,7 +40,6 @@ function pieces = getTetrino(expParams)
         % define a rotation pivot (you can adjust if you want a different pivot)
         pieces(p).pivot = ceil([height, width] / 2);
 
-
         % image with black background color
         img = zeros(height * blockSize, width * blockSize, 3);
 
@@ -53,7 +52,7 @@ function pieces = getTetrino(expParams)
                     innerRow = rowStart + border : rowStart + blockSize - border;
                     innerCol = colStart + border : colStart + blockSize - border;
 
-                    color = reshape(expParams.colors.piece, 1, 1, 3);
+                    color = reshape(expParams.colors.white, 1, 1, 3);
                     img(innerRow, innerCol, :) = repmat(color, length(innerRow), length(innerCol), 1);
                 end
             end
