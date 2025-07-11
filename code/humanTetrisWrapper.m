@@ -99,6 +99,8 @@ try
         fprintf('Recalibration complete.\n');
     end
 
+    % add a half way pause screen to switch EEG recording...
+
     % p1,  piece presentation
     p1(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
 

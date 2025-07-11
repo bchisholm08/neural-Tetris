@@ -41,7 +41,7 @@ function pieces = getTetrino(expParams)
         pieces(p).pivot = ceil([height, width] / 2);
 
         % image with black background color
-        img = zeros(height * blockSize, width * blockSize, 3);
+        img = zeros(height * blockSize, width * blockSize, 3, 'uint8');
 
         for row = 1:height
             for col = 1:width
@@ -52,7 +52,8 @@ function pieces = getTetrino(expParams)
                     innerRow = rowStart + border : rowStart + blockSize - border;
                     innerCol = colStart + border : colStart + blockSize - border;
 
-                    color = reshape(expParams.colors.white, 1, 1, 3);
+                    color = reshape(uint8(expParams.colors.white), 1, 1, 3);
+
                     img(innerRow, innerCol, :) = repmat(color, length(innerRow), length(innerCol), 1);
                 end
             end

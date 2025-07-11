@@ -183,8 +183,8 @@ for t = 1:length(tableaus)
     % build new img matrix for blocks + white border
 img = zeros(imgHeight, imgWidth, 3, 'uint8');
 
-% blockCol = reshape(uint8(expParams.colors.white),1,1,3);  
-blockCol = expParams.colors.white;  
+blockCol = reshape(uint8(expParams.colors.white),1,1,3);  
+% blockCol = expParams.colors.white;  causes errors no uint8
 for r = 1:rows
     for c = 1:cols
         if board(r,c) == 1
