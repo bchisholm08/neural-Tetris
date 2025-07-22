@@ -15,9 +15,7 @@ ioObj     = expParams.ioObj;
 address   = expParams.address;
 eyetracker = expParams.eyeTracker;       
 subjID     = expParams.subjID;           
-gameIdx    = expParams.p5.gameplayCount; 
-
-% FIXME add in expParam window/screen vars
+gameIdx    = expParams.p5.gameplayCount;          
 
 % Load snapshot struct from .mat
 data = load(snapshotFile);
@@ -25,12 +23,11 @@ data = load(snapshotFile);
 snapshots = data.boardSnapshot; 
 fprintf('First EEG Trigger: %d | Last EEG Trigger: %d\n', snapshots(1).eegTrigs, snapshots(end).eegTrigs);
 
-
 if isempty(snapshots(1).eegTrigs) || snapshots(1).eegTrigs ~= 101
-    fakeStart = snapshots(1);
-    fakeStart.eegTrigs = 101;
-    fakeStart.timestamp = snapshots(1).timestamp - 0.001;  % 1 ms before first frame
-    snapshots = [fakeStart, snapshots];
+    falseStart = snapshots(1);
+    falseStart.eegTrigs = 101;
+    falseStart.timestamp = snapshots(1).timestamp - 0.001;  % 1 ms before first frame
+    snapshots = [falseStart, snapshots];
 end
 
 % Check and insert missing final EEG trigger (124)
@@ -153,7 +150,6 @@ for k = 1:length(snapshots) % for length of snapshots...(not frames--as a matter
 
     % find our trigger
     replayTrig = snapshots(k).eegTrigs;
-
             
     Screen('Flip', window);
     % send trigger at replay flip 
@@ -221,7 +217,6 @@ end % snapshots replay loop end
         WaitSecs(1);  % demo stub
         tRecordingEnd = GetSecs;
     end
-	
 	
     % qc
     lossL = mean([blockGazeData.PupilDiaL] == 0);

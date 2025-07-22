@@ -35,6 +35,8 @@
 %-------------------------------------------------------
 function [window, windowRect, expParams, ioObj, address, eyetracker] = initExperiment(subjID, demoMode)
 
+demoModeButFullTrials = 0; 
+
 % init empty outputs
 window = [];
 windowRect = [];
@@ -211,6 +213,7 @@ expParams.p2.options.sectionDoneFlag = 0;
 % % % expParams.p4.options.sectionDoneFlag = 0;
 expParams.p5.options.sectionDoneFlag = 0;
 
+
 if demoMode
     Screen('Preference', 'SkipSyncTests', 2);  % loose
 else
@@ -273,37 +276,24 @@ if demoMode
     % expParams.gameCount = 0;
 
     %% demoMode timings
-    expParams.rule.minBlockBreakTime = 0;
-    expParams.rule.maxBlockBreakTime = 300;
-    expParams.rule.minInterExpBreakTime = 0;
-    expParams.rule.maxInterExpBreakTime = 300;
+    % % expParams.rule.minBlockBreakTime = 0;
+    % % expParams.rule.maxBlockBreakTime = 300;
+    % % expParams.rule.minInterExpBreakTime = 0;
+    % % expParams.rule.maxInterExpBreakTime = 300;
 
-    % timings below in MS
+    expParams.rule.minBlockBreakTime = 10;
+    expParams.rule.maxBlockBreakTime = 60;
+    expParams.rule.minInterExpBreakTime = 30;
+    expParams.rule.maxInterExpBreakTime = 50;
+
+    % timings in MS
     % p1
     expParams.p1.options.stimulusDuration = 0.1;
     expParams.p1.options.fixationDuration = 0.5;
     % p2
     expParams.p2.options.stimulusDuration = 0.1;
     expParams.p2.options.fixationDuration = 0.5;
-    % p 4
-    % % % expParams.p4.options.stimulusDuration = 0.1;
-    % % % expParams.p4.options.fixationDuration = 0.5;
-    % % % expParams.p4.options.respTimeout = 1.5; % seconds, how long the subj has to respond. NOTE: Look closely @ how iti & flip are calculated, and if this 'remainder' or 'idle
 
-    % demoMode blocks / trials
-    expParams.p1.options.blocks = 4;
-    expParams.p1.options.trialsPerBlock = 5;
-    expParams.p1.options.totalP1Trials = expParams.p1.options.blocks * expParams.p1.options.trialsPerBlock;
-
-    expParams.p2.options.blocks = 7;
-    expParams.p2.options.trialsPerBlock = 6; %  MUST BE A MULTIPLE OF 6 FOR EXP TO WORK
-    expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
-
-    % % % expParams.p4.options.blocks = 7;
-    % % % expParams.p4.options.trialsPerBlock = 18; % get more presentation in demoMode
-    % % % expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
-
-    demoModeButFullTrials = 0;
     if  demoModeButFullTrials % if we are in demoMode (no EEG or eyetracker) but want full stimulus length
         %% real exp trials and blocks
         expParams.p1.options.blocks = 7;
@@ -312,10 +302,19 @@ if demoMode
         % p1, 490 total trials, 15 or so min
 
         expParams.p2.options.blocks = 7;
-        expParams.p2.options.trialsPerBlock = 126; %  MUST BE A MULTIPLE OF 3 FOR EXP TO WORK; 3 conditions (fit / partial fit / does not fit)
+        expParams.p2.options.trialsPerBlock = 180; %  MUST BE A MULTIPLE OF 3 FOR EXP TO WORK; 3 conditions (fit / partial fit / does not fit)
         expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
-        % p2, 882 total trials. Originally 210 trials per block, which is
-        % almost an hour alone. This should be closer to 30 min
+        % p2, 1260 total trials. Originally 210 trials per block, which is
+        % almost an hour. This should be closer to 30 min
+    else
+    % demoMode blocks / trials
+    expParams.p1.options.blocks = 4;
+    expParams.p1.options.trialsPerBlock = 5;
+    expParams.p1.options.totalP1Trials = expParams.p1.options.blocks * expParams.p1.options.trialsPerBlock;
+
+    expParams.p2.options.blocks = 7;
+    expParams.p2.options.trialsPerBlock = 6; %  MUST BE A MULTIPLE OF 6 FOR EXP TO WORK
+    expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
     end
     % % % expParams.p4.options.blocks = 7;
     % % % expParams.p4.options.trialsPerBlock = 50;
@@ -355,15 +354,15 @@ if demoMode
 else
     %% REAL EXPERIMENT MODE
     %% timings
-    expParams.rule.minBlockBreakTime = 30;
-    expParams.rule.maxBlockBreakTime = 120;
+    expParams.rule.minBlockBreakTime = 10;
+    expParams.rule.maxBlockBreakTime = 60;
     expParams.rule.minInterExpBreakTime = 30;
-    expParams.rule.maxInterExpBreakTime = 180;
+    expParams.rule.maxInterExpBreakTime = 50;
 
-    expParams.rule.minBlockBreakTime = 0;
-    expParams.rule.maxBlockBreakTime = 300;
-    expParams.rule.minInterExpBreakTime = 0;
-    expParams.rule.maxInterExpBreakTime = 300;
+    % % expParams.rule.minBlockBreakTime = 0;
+    % % expParams.rule.maxBlockBreakTime = 300;
+    % % expParams.rule.minInterExpBreakTime = 0;
+    % % expParams.rule.maxInterExpBreakTime = 300;
     % below all in MS
     % p1
     expParams.p1.options.stimulusDuration = 0.1;
@@ -432,7 +431,6 @@ else
         ioObj = []; % empty ioObj if setup fails
         address = [];
     end
-
 
     % playOneGame hotfix from struct error
     expParams.ioObj = ioObj;

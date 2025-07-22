@@ -45,7 +45,7 @@ calibrateAgain   = true;
 
 try
     while calibrateAgain
-        %% 1) Welcome & wait for SPACE or ESC
+        %% Welcome & wait for SPACE or ESC
         Screen('FillRect', window, bgColor);
         msg = [
             'Welcome to Tobii Calibration!'             newline newline ...
@@ -67,7 +67,7 @@ try
             end
         end
 
-        %% 2) Enter calibration mode (with manufacturer's retry on error210)
+        %% Enter calibration mode (with manufacturer's retry on error210)
         calib = ScreenBasedCalibration(eyetracker);
         try
             calib.enter_calibration_mode();
@@ -81,7 +81,7 @@ try
             end
         end
 
-        %% 3) Show & collect each calibration point
+        %% Show & collect each calibration point
         [sx, sy] = Screen('WindowSize', window);
         pts = [0.1 0.1; 0.9 0.1; 0.5 0.5; 0.1 0.9; 0.9 0.9];
 
@@ -101,7 +101,7 @@ try
             end
         end
 
-        %% 4) Compute & apply
+        %% Compute & apply
         DrawFormattedText(window, 'Computing calibration…', 'center','center', white);
         Screen('Flip', window);
         calibration_result = calib.compute_and_apply();
@@ -113,7 +113,7 @@ try
             continue
         end
 
-        %% 5) Plot calibration targets & gaze samples
+        %% Plot calibration targets & gaze samples
         if calibration_result.Status == CalibrationStatus.Success
             figure('Name','Tobii Calibration Plot','NumberTitle','off');
             hold on;
@@ -143,7 +143,7 @@ try
             hold off;
         end
 
-        %% 6) Compute left/right loss %
+        %% Compute left/right loss %
         totalPts = 0; leftValid = 0; rightValid = 0;
         CP = calibration_result.CalibrationPoints;
         for i = 1:numel(CP)
@@ -156,7 +156,7 @@ try
         leftLoss  = 100*(1 - leftValid/totalPts);
         rightLoss = 100*(1 - rightValid/totalPts);
 
-        %% 7) Prompt Save vs Re-calibrate vs Abort
+        %% Prompt Save vs Re-calibrate vs Abort
         statsMsg = sprintf(...
           'Calibration Stats:\nTotal samples: %d\nLeft loss: %.1f%%\nRight loss: %.1f%%\n\n' + ...
           'Press S=Save, R=Re-calibrate, ESC=Abort\n', totalPts, leftLoss, rightLoss);

@@ -10,7 +10,6 @@
 %-------------------------------------------------------
 function p2(subjID, demoMode, expParams, ioObj, address, eyetracker)
 
-
 window     = expParams.screen.window;
 windowRect = expParams.screen.windowRect;
 cx = expParams.screen.center(1);
@@ -46,7 +45,6 @@ try % begin try for experiment after init exp
         % tRecordingStart = eyetracker.get_system_time_stamp();
         tGameStart      = GetSecs;
     end
-
 
     if ~demoMode
         % flush stray samples & catch errors
@@ -160,9 +158,22 @@ try % begin try for experiment after init exp
     if ~demoMode && ~isempty(ioObj)
         io64(ioObj, address, trig);
     end
-    WaitSecs(2);
+    WaitSecs(1);
+
+    % pre-allocate with the right length
+    nTrials    = length(stimulusSequence);
+    trialDur   = zeros(1, nTrials);
+
+ifi     = expParams.screen.ifi;                     % single‐frame duration
+fixDur  = expParams.p2.options.fixationDuration;    % 0.5 s
+stimDur = expParams.p2.options.stimulusDuration;    % 0.1 s
+
     for i = 1:length(stimulusSequence) % use 'i' counter for stimuli
         % begin pupillometry data collection
+
+        % lets check timings...
+
+        tStart = tic;
 
         if ~demoMode
             raw = eyetracker.get_gaze_data();
@@ -186,6 +197,7 @@ try % begin try for experiment after init exp
         end
         trialInfo = stimulusSequence(i); % get curr 'i' from stimuli
 
+
         % start of block tasks
         if trialInfo.blockNum ~= currentBlock || trialInfo.phaseNum ~= currentPhase
             if trialInfo.blockNum ~= currentBlock
@@ -201,49 +213,31 @@ try % begin try for experiment after init exp
         % get struct w/ piece texture
         stimulusPieceStruct = pieces(strcmp({pieces.name}, trialInfo.stimulusPieceName));
 
-        % fixation
+% fixation 
+Screen('DrawTexture', window, tableauToDisplay.tex,   [], tableauToDisplay.rect);
+drawFixation(window, windowRect, expParams);
+fixationOnset = Screen('Flip', window);    % appears now
 
-        Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
+% stim 
+Screen('DrawTexture', window, tableauToDisplay.tex,   [], tableauToDisplay.rect);
+stimulusPieceRect = CenterRectOnPoint(stimulusPieceStruct.rect, cx,cy);
+Screen('DrawTexture', window, stimulusPieceStruct.tex, [], stimulusPieceRect);
+stimOnset = Screen('Flip', window, fixationOnset + fixDur - ifi/2);
 
-        % draw fixation ontop of tableau
-        drawFixation(window, expParams.screen.windowRect, expParams);
+% send trig at stim 
+if ~demoMode && ~isempty(ioObj)
+    io64(ioObj, address, trialInfo.eegTrigger);
+end
 
-        % show tableau and fixation
-        fixationOnset = Screen('Flip', window);
+% re fixate 
+Screen('DrawTexture', window, tableauToDisplay.tex,   [], tableauToDisplay.rect);
+drawFixation(window, windowRect, expParams);
+itiDur = Screen('Flip', window, stimOnset + stimDur - ifi/2);
 
-        % pause script, leave fixation on screen
-        iti = expParams.p2.options.itiFcn();
-        WaitSecs(iti);
+% keep iti 
+itiDur = expParams.p2.options.itiFcn();  
+WaitSecs(itiDur);
 
-        % Stimulus Presentation (Tableau + Piece)
-
-        % draw tableau for phase, calculate piece centering. Draw stimulus
-        Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
-        stimulusPieceRect = CenterRectOnPoint(stimulusPieceStruct.rect, cx,cy);
-
-        % draw stimulus ontop of tableau
-        Screen('DrawTexture', window, stimulusPieceStruct.tex, [], stimulusPieceRect);
-
-        % get stim onset time
-        stimOnset = Screen('Flip', window);
-
-        if ~demoMode && ~isempty(ioObj)
-            io64(ioObj, address, trialInfo.eegTrigger)
-        end
-
-        % tableau and piece are visible. Pause script for stimulus presentation duration
-        WaitSecs(expParams.p2.options.stimulusDuration);
-
-        % handle ITI
-
-        % prepare ITI on buffer, draw constant tableau for phase
-        Screen('DrawTexture', window, tableauToDisplay.tex, [], tableauToDisplay.rect);
-
-        % draw fixation ontop of tableau
-        drawFixation(window, expParams.screen.windowRect, expParams);
-
-        % flip buffers once fixation duration ends. Replace stimulus w/ fixation
-        Screen('Flip', window);
 
         % collect data in ITI
         % Log BEHAVIORAL data
@@ -254,6 +248,7 @@ try % begin try for experiment after init exp
         blockData(i).stimulusPiece = trialInfo.stimulusPieceName;
         blockData(i).isMatch = trialInfo.isMatch;
         blockData(i).fixationOnset = fixationOnset;
+        blockData(i).itiLen = itiDur;
         blockData(i).stimOnset = stimOnset;
         blockData(i).eegTrigger = trialInfo.eegTrigger;
 
@@ -261,7 +256,9 @@ try % begin try for experiment after init exp
         handlePause(window, expParams.keys);
 
         % append recent gazeData
+        trialDur(i) = toc(tStart);
     end % end of stimulus sequence
+
     %% save BEHAVIORAL data at the very end
     trig = getTrig('section_end');
     fprintf(['section_end trigger sent: %d\n'],trig);
@@ -275,6 +272,10 @@ try % begin try for experiment after init exp
 
     % save data at the very end
     saveDat('p2', subjID, blockData, expParams, demoMode);
+
+    expParams.timing.p2 = trialDur;
+    save(fullfile(expParams.subjPaths.miscDir,'p2_timingInfo.mat'),'trialDur');
+
 
     if ~demoMode
         % final data and light error handling

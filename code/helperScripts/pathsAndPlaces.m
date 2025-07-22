@@ -20,17 +20,17 @@ function p = pathsAndPlaces(id)
         end
         
         % Navigate up the directory tree to find the root project folder
-        % This assumes a structure of: .../project_root/code/helperScripts/getProjectPath.m
+        % structure of: .../project_root/code/helperScripts/getProjectPath.m
         helperScriptsFolder = fileparts(thisFilePath);
         codeFolder = fileparts(helperScriptsFolder);
         root_project_folder = fileparts(codeFolder);
         
-        % A sanity check to ensure we didn't navigate too far up
+        % sanity check 
         if isempty(root_project_folder) || ~exist(fullfile(root_project_folder, 'code'), 'dir')
              error('Derived project root folder "%s" seems incorrect. Please check the folder structure.', root_project_folder);
         end
     catch ME
-        % If any part of the path detection fails, provide a clear error.
+        % if we fail throw an error 
         rethrow(ME);
     end
     

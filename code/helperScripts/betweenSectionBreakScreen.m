@@ -11,7 +11,7 @@
 function betweenSectionBreakScreen(window, expParams)
 
 
-% Ensure consistent text settings
+
 Screen('TextSize', window, 28);
 Screen('TextFont', window, 'Arial'); % Ensure font is consistent
 

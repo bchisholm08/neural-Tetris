@@ -1,0 +1,27 @@
+---
+title: "exploratoryTetrisPupilAnalysis"
+author: "Brady M. Chisholm"
+date: "2025-07-14"
+output: html_document
+---
+
+plan: analyze response to certain event markers in our pupillometry data.
+
+
+"Z:\13-humanTetris\data\ggPilot_02\eyeData\ggPilot_02_gameReplay006_gaze.mat"
+
+"Z:\13-humanTetris\data\ggPilot_02\eyeData\ggPilot_02_game006_gaze.mat"
+
+where file tag is "subjID_game000_gaze.mat" for PLAYING tetris 
+and "subjID_gameReplay000_gaze.mat" for when participants watch a replay. 
+
+Each file 
+```{r}
+# library(R.matlab)
+# library(BiocManager)
+library(hdf5r)
+# library(rhdf5)
+myFilePath = "Z:/13-humanTetris/data/ggPilot_02/eyeData/ggPilot_02_game004_gaze.mat"
+hdf5r::new(filename = myFilePath)
+```
+

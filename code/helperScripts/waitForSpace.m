@@ -14,5 +14,5 @@ while true
         break;
     end
 end
-WaitSecs(0.2);  % avoid accidentally re-reading an input 
+WaitSecs(0.2);  % avoid re-reading input 
 end

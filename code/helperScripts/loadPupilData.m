@@ -53,7 +53,7 @@ end
 fprintf('All Trials Loaded for %s | Trials = %d', subjID, nFiles);
 
 % -------------------------
-% Opt. Plotting
+% Optional Plotting
 % -------------------------
 if doPlot
     figure('Name', sprintf('Pupil Traces: %s', subjID), 'Color', 'w'); hold on;

@@ -14,7 +14,7 @@
 % play). This is all automatically handled by the script. The script also
 % helps clean up errors/crashes in a 'graceful' way
 %
-% Fun code to open all files in directory
+% cool code to open all files in directory
 % % % files = dir("*.m");
 % % % for k = 1:length(files)
 % % %     open(files(k).name);
@@ -25,10 +25,11 @@ function humanTetrisWrapper(subjID, demoMode)
 if nargin < 1
     subjID = input('Enter a subjID (e.g. ''P01''): ', 's');
     subjID = strtrim(subjID); % Remove leading/trailing whitespace
-end
+end 
+
 if nargin < 2
     demoMode = 1; % default to demoMode if no input
-end
+end 
 
 % try to prevent some path errors
 addpath('Z:\13-humanTetris\code');
@@ -77,7 +78,7 @@ try
     %% run exp. sections
     % natural tetris play
     % p5(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
-    % 
+    %
     % % break 1
     % betweenSectionBreakScreen(window, expParams);
 
@@ -100,6 +101,42 @@ try
     end
 
     % add a half way pause screen to switch EEG recording...
+    Screen('TextSize', window, 36);
+    Screen('TextFont', window, 'Arial');
+    
+    halfMsg = sprintf(['Halfway Reached!\n\n' ...
+        'Please wait for experimenter....\n\n']);
+    DrawFormattedText(window, halfMsg, 'center', 'center', expParams.colors.white);
+    Screen('Flip', window);
+    RestrictKeysForKbCheck(KbName('c'));
+    KbReleaseWait;
+    KbWait([], 2);
+    RestrictKeysForKbCheck([]);
+    KbReleaseWait;
+ 
+    if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
+        fprintf('Recalibrating eye tracker before 4-AFC...\n');
+        DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
+        Screen('Flip', window);
+        KbName('UnifyKeyNames');
+        spaceKey = KbName('SPACE');
+        KbWait(-1, 2); % Wait for key release before proceeding. why not just wait(.5)  ?
+        while true % wait for space
+            [~, ~, keyCode] = KbCheck;
+            if keyCode(spaceKey)
+                break;
+            end
+        end
+        calibrateTobii(window, windowRect, eyetracker, expParams);
+        fprintf('Recalibration complete.\n');
+    end
+
+    for countdown = 5:-1:1
+        DrawFormattedText(window, sprintf('Get Ready For Part II!\n\n%d', countdown), ...
+            'center', 'center', expParams.colors.white);
+        Screen('Flip', window);
+        WaitSecs(1);
+    end
 
     % p1,  piece presentation
     p1(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);

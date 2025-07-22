@@ -25,7 +25,7 @@ function pauseDuration = handlePause(window, keys)
         DrawFormattedText(window, pauseText, 'center', 'center', [255 255 255]);
         Screen('Flip', window);
         
-        KbReleaseWait(-1); % Wait for the 'p' key to be released
+        KbReleaseWait(-1); % Wait for p to be released
         
         % wait 
         while true

@@ -59,7 +59,7 @@ function pieces = getTetrino(expParams)
             end
         end
         
-        pieces(p).shape  = shape;                          % binary matrix
+        pieces(p).shape  = shape;                          % matrix
         [r,c]            = find(shape);
         pieces(p).coords = [r, c];                         % 4×2 list
         pieces(p).pivot  = ceil(size(shape)/2);            % center of shape
