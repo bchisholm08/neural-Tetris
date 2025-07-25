@@ -46,9 +46,9 @@ try
     S.pieceColors = repmat({expParams.visual.pieceColor}, 1, 7);
 
     S.pointsVector = [100 300 500 800]; % reg tetris points for 1, 2s, 3, or 4 lines cleared
-    S.levelFactor = .025;  % speed factor per level (omit? Ask JP) ORIGINAL GAME IS .625. Curious if changing to 0 would work
+    S.levelFactor = .775;  % speed factor per level (omit? Ask JP) ORIGINAL GAME IS .625. Curious if changing to 0 would work
 
-    S.linesForLevelUp = 10; % originally 5 lines. Probably dropping all together. See above
+    S.linesForLevelUp = 5; % originally 5 lines. Probably dropping all together. See above
 
     % init special logs. good reference. save to misc dir
     eventLog = struct( ...

@@ -17,11 +17,32 @@ and "subjID_gameReplay000_gaze.mat" for when participants watch a replay.
 
 Each file 
 ```{r}
-# library(R.matlab)
+library(R.matlab)
 # library(BiocManager)
 library(hdf5r)
 # library(rhdf5)
 myFilePath = "Z:/13-humanTetris/data/ggPilot_02/eyeData/ggPilot_02_game004_gaze.mat"
 hdf5r::new(filename = myFilePath)
 ```
+
+```{r}
+# library(hdf5r)
+# 
+# # point to your file
+# myFilePath <- "Z:/13-humanTetris/data/ggPilot_02/eyeData/ggPilot_02_game004_gaze.mat"
+# 
+# # open it read-only
+# f <- H5File$new(myFilePath, mode = "r")
+# 
+# # list top-level groups/datasets
+# f$ls(recursive = TRUE)
+```
+
+```{r}
+path <- system.file("Z:\13-humanTetris\data\ggPilot_02\boardSnapshots", package = "R.matlab")
+pathname <- file.path(path, "ggPilot_02_p5_boardSnapshot_g02.mat")
+data <- readMat(pathname)
+
+```
+
 

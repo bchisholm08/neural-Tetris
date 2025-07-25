@@ -57,7 +57,7 @@ try
             prompt2 = 'Is speed mode set to FOUR on BioSemi? (Y/N): ';
             response2 = strtrim(input(prompt2, 's'));
 
-            prompt3 = 'Is BioSemi recording USB plugged into S27-B? (Y/N): ';
+            prompt3 = 'Is BioSemi recording USB plugged into S27-C? (Y/N): ';
             response3 = strtrim(input(prompt3, 's'));
 
             responses = {response1, response2, response3};
@@ -76,29 +76,30 @@ try
     end % pre-experiment checks
 
     %% run exp. sections
-    % natural tetris play
-    % p5(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
-    %
-    % % break 1
-    % betweenSectionBreakScreen(window, expParams);
+%    natural tetris play
+    p5(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
 
-    % complete a calibration before going into final half
-    if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
-        fprintf('Recalibrating eye tracker...\n');
-        DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
-        Screen('Flip', window);
-        KbName('UnifyKeyNames');
-        spaceKey = KbName('SPACE');
-        KbWait(-1, 2); % Wait for key release before proceeding. why not just wait(.5)  ?
-        while true % wait for space
-            [~, ~, keyCode] = KbCheck;
-            if keyCode(spaceKey)
-                break;
-            end
-        end
-        calibrateTobii(window, windowRect, eyetracker, expParams);
-        fprintf('Recalibration complete.\n');
-    end
+    % break 1
+ 
+    betweenSectionBreakScreen(window, expParams);
+
+%     % complete a calibration before going into final half
+%     if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
+%         fprintf('Recalibrating eye tracker...\n');
+%         DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
+%         Screen('Flip', window);
+%         KbName('UnifyKeyNames');
+%         spaceKey = KbName('SPACE');
+%         KbWait(-1, 2); % Wait for key release before proceeding. why not just wait(.5)  ?
+%         while true % wait for space
+%             [~, ~, keyCode] = KbCheck;
+%             if keyCode(spaceKey)
+%                 break;
+%             end
+%         end
+%         calibrateTobii(window, windowRect, eyetracker, expParams);
+%         fprintf('Recalibration complete.\n');
+%     end
 
     % add a half way pause screen to switch EEG recording...
     Screen('TextSize', window, 36);
@@ -114,33 +115,33 @@ try
     RestrictKeysForKbCheck([]);
     KbReleaseWait;
  
-    if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
-        fprintf('Recalibrating eye tracker before 4-AFC...\n');
-        DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
-        Screen('Flip', window);
-        KbName('UnifyKeyNames');
-        spaceKey = KbName('SPACE');
-        KbWait(-1, 2); % Wait for key release before proceeding. why not just wait(.5)  ?
-        while true % wait for space
-            [~, ~, keyCode] = KbCheck;
-            if keyCode(spaceKey)
-                break;
-            end
-        end
-        calibrateTobii(window, windowRect, eyetracker, expParams);
-        fprintf('Recalibration complete.\n');
-    end
+    % % if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
+    % %     fprintf('Recalibrating eye tracker before 4-AFC...\n');
+    % %     DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
+    % %     Screen('Flip', window);
+    % %     KbName('UnifyKeyNames');
+    % %     spaceKey = KbName('SPACE');
+    % %     KbWait(-1, 2); % Wait for key release before proceeding. why not just wait(.5)  ?
+    % %     while true % wait for space
+    % %         [~, ~, keyCode] = KbCheck;
+    % %         if keyCode(spaceKey)
+    % %             break;
+    % %         end
+    % %     end
+    % %     calibrateTobii(window, windowRect, eyetracker, expParams);
+    % %     fprintf('Recalibration complete.\n');
+    % % end
 
-    for countdown = 5:-1:1
+    for countdown = 3:-1:1
         DrawFormattedText(window, sprintf('Get Ready For Part II!\n\n%d', countdown), ...
             'center', 'center', expParams.colors.white);
         Screen('Flip', window);
         WaitSecs(1);
     end
 
-    % p1,  piece presentation
+    % % p1,  piece presentation
     p1(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
-
+    
     % break 1
     betweenSectionBreakScreen(window, expParams);
 
@@ -149,29 +150,6 @@ try
 
     showEndScreen(window, expParams); % thank participant and exit
 
-    % break 2
-    %        betweenSectionBreakScreen(window, expParams);
-
-    % recalibrate before p4
-    % FIXME this can probably be accomplished in a more graceful way,
-    % like maybe WITHIN THE P4 SCRIPT ITSELF WITH THE CUSTOM CALIBRATION FUNCTION I WROTE
-
-    % if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
-    %     fprintf('Recalibrating eye tracker before 4-AFC...\n');
-    %     DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
-    %     Screen('Flip', window);
-    %     KbName('UnifyKeyNames');
-    %     spaceKey = KbName('SPACE');
-    %     KbWait(-1, 2); % Wait for key release before proceeding. why not just wait(.5)  ?
-    %     while true % wait for space
-    %         [~, ~, keyCode] = KbCheck;
-    %         if keyCode(spaceKey)
-    %             break;
-    %         end
-    %     end
-    %     calibrateTobii(window, windowRect, eyetracker, expParams);
-    %     fprintf('Recalibration complete.\n');
-    % end
 
 catch ME
 
@@ -233,8 +211,6 @@ catch ME
 end
 
 % clean up after exp.
-% already handled in showEndScreen, but including here ensures it
-% always happens if some other bug occurs
 sca;
 ShowCursor;
 Priority(0);

@@ -34,9 +34,6 @@
 %               struct(fields)
 %-------------------------------------------------------
 function [window, windowRect, expParams, ioObj, address, eyetracker] = initExperiment(subjID, demoMode)
-
-demoModeButFullTrials = 0; 
-
 % init empty outputs
 window = [];
 windowRect = [];
@@ -186,33 +183,31 @@ disp(['Added to path (Tobii SDK): ', tobiiSDKPath]);
 % disp(['Added to path (Titta): ', tittaPath]);
 disp(['Added to path (EEG Helper): ', eegHelperPath]);
 
-if demoMode % extra demo mode file pathway check, so many past errors / problems with creating incorrect directories
-    while true
-        % user confirmation
-        prompt = 'Proceed with displayed filepathways? (Y/N): ';
-        response = strtrim(input(prompt, 's'));
-        % Check response
-        if strcmpi(response, 'Y') || strcmpi(response, 'Yes')
-            % If 'Y' or 'Yes', break the loop and continue with the script
-            fprintf('Paths confirmed. Continuing...\n');
-            break;
-        elseif strcmpi(response, 'N') || strcmpi(response, 'No')
-            % If 'N' or 'No', throw an error to abort the experiment safely
-            error('Experiment aborted by user at path confirmation.');
-        else
-            % If the input is invalid, inform the user and ask again
-            fprintf('Invalid input. Please enter Y or N.\n');
-        end
-    end
-end % file path check
-
+% % % if demoMode % extra demo mode file pathway check, so many past errors / problems with creating incorrect directories
+% % %     while true
+% % %         % user confirmation
+% % %         prompt = 'Proceed with displayed filepathways? (Y/N): ';
+% % %         response = strtrim(input(prompt, 's'));
+% % %         % Check response
+% % %         if strcmpi(response, 'Y') || strcmpi(response, 'Yes')
+% % %             % If 'Y' or 'Yes', break the loop and continue with the script
+% % %             fprintf('Paths confirmed. Continuing...\n');
+% % %             break;
+% % %         elseif strcmpi(response, 'N') || strcmpi(response, 'No')
+% % %             % If 'N' or 'No', throw an error to abort the experiment safely
+% % %             error('Experiment aborted by user at path confirmation.');
+% % %         else
+% % %             % If the input is invalid, inform the user and ask again
+% % %             fprintf('Invalid input. Please enter Y or N.\n');
+% % %         end
+% % %     end
+% % % end % file path check
 
 % section flags
 expParams.p1.options.sectionDoneFlag = 0;
 expParams.p2.options.sectionDoneFlag = 0;
 % % % expParams.p4.options.sectionDoneFlag = 0;
 expParams.p5.options.sectionDoneFlag = 0;
-
 
 if demoMode
     Screen('Preference', 'SkipSyncTests', 2);  % loose
@@ -294,28 +289,6 @@ if demoMode
     expParams.p2.options.stimulusDuration = 0.1;
     expParams.p2.options.fixationDuration = 0.5;
 
-    if  demoModeButFullTrials % if we are in demoMode (no EEG or eyetracker) but want full stimulus length
-        %% real exp trials and blocks
-        expParams.p1.options.blocks = 7;
-        expParams.p1.options.trialsPerBlock = 70;
-        expParams.p1.options.totalP1Trials = expParams.p1.options.blocks * expParams.p1.options.trialsPerBlock;
-        % p1, 490 total trials, 15 or so min
-
-        expParams.p2.options.blocks = 7;
-        expParams.p2.options.trialsPerBlock = 180; %  MUST BE A MULTIPLE OF 3 FOR EXP TO WORK; 3 conditions (fit / partial fit / does not fit)
-        expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
-        % p2, 1260 total trials. Originally 210 trials per block, which is
-        % almost an hour. This should be closer to 30 min
-    else
-    % demoMode blocks / trials
-    expParams.p1.options.blocks = 4;
-    expParams.p1.options.trialsPerBlock = 5;
-    expParams.p1.options.totalP1Trials = expParams.p1.options.blocks * expParams.p1.options.trialsPerBlock;
-
-    expParams.p2.options.blocks = 7;
-    expParams.p2.options.trialsPerBlock = 6; %  MUST BE A MULTIPLE OF 6 FOR EXP TO WORK
-    expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
-    end
     % % % expParams.p4.options.blocks = 7;
     % % % expParams.p4.options.trialsPerBlock = 50;
     % % % expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
@@ -334,19 +307,6 @@ if demoMode
     expParams.p5.replayCount = [];
     expParams.p5.blockSize = expParams.visual.blockSize; % global
 
-
-    % %
-    % % specialSpeedBoi = 1; % testing takes a long time, this should help
-    % %
-    % % if specialSpeedBoi
-    % % expParams.p5.options.totalTime = 240; % 4 MIN TOTAL
-    % % expParams.p5.options.phaseOne = 120; % 2 MIN OF PLAYING
-    % % else
-    % % % in seconds
-    % % expParams.p5.options.totalTime = 4500; % 4500s = 75min
-    % % expParams.p5.options.phaseOne = 1500; % 1500s = 25min (1/3rd of P5 time)
-    % % end
-
     % other p5 options
     expParams.p5.saveBoardSnapShot = 1; % manual setting, will save boardsnap shots to designated folder
     expParams.p5.gameplayCount = 0; % init for later counting...
@@ -354,10 +314,10 @@ if demoMode
 else
     %% REAL EXPERIMENT MODE
     %% timings
-    expParams.rule.minBlockBreakTime = 10;
-    expParams.rule.maxBlockBreakTime = 60;
-    expParams.rule.minInterExpBreakTime = 30;
-    expParams.rule.maxInterExpBreakTime = 50;
+    expParams.rule.minBlockBreakTime = 5;
+    expParams.rule.maxBlockBreakTime = 30;
+    expParams.rule.minInterExpBreakTime = 15;
+    expParams.rule.maxInterExpBreakTime = 60;
 
     % % expParams.rule.minBlockBreakTime = 0;
     % % expParams.rule.maxBlockBreakTime = 300;
@@ -455,8 +415,8 @@ else
     % % % % p4, 350 total trials
 
     % in seconds
-    expParams.p5.options.totalTime = 4500; % 4500s = 75min
-    expParams.p5.options.phaseOne = 1500; % 1500s = 25min (1/3rd of total P5 time)
+    expParams.p5.options.totalTime = 4200; % 4200s = 70min
+    expParams.p5.options.phaseOne = 1200; % 1500s = 20min (1/3rd of total P5 time)
 
     % other p5 options
     expParams.p5.saveBoardSnapShot = 1; % manual setting, save boardsnap shots to designated folder
@@ -471,9 +431,6 @@ if expParams.demoMode
     sillyStringBoi = "DEMO MODE";
 else; sillyStringBoi = "REAL ~~DEAL~~ DATA COLLECTION";
 end
-
-
-
 
 fprintf(['\n\n=============================\n' ...
     'initExperiment successfully initialized experiment in %s' ...

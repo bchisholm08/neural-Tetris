@@ -2,7 +2,7 @@ function calibrationData = calibrateTobii(window, windowRect, eyetracker, expPar
 %-------------------------------------------------------
 % Author: Brady M. Chisholm (merged with Tobii example)
 % University of Minnesota Twin Cities, Dpt. of Neuroscience
-% Date: 6.9.2025 (updated 7.7.2025)
+% Date: 6.9.2025 
 %
 % Description:
 %   Unified Tobii calibration routine that:
@@ -105,7 +105,7 @@ try
         DrawFormattedText(window, 'Computing calibration…', 'center','center', white);
         Screen('Flip', window);
         calibration_result = calib.compute_and_apply();
-        fprintf('Calibration Status: %d\n', calibration_result.Status.value);
+      %  fprintf('Calibration Status: %d\n', calibration_result.Status.value);
         calib.leave_calibration_mode();
 
         if calibration_result.Status ~= CalibrationStatus.Success
@@ -170,7 +170,7 @@ try
                 disp('Calibration aborted without saving.');
                 return
             elseif keyCode(sKey)
-                outDir = fullfile(expParams.baseDataDir,'subjData',expParams.subjID,'eyeData');
+                outDir = expParams.subjPaths.eyeDir;
                 if ~exist(outDir,'dir'), mkdir(outDir), end
                 fn = sprintf('calibration_%s.mat', expParams.timestamp);
                 save(fullfile(outDir,fn), 'calibration_result');

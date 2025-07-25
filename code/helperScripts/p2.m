@@ -17,6 +17,8 @@ cy = expParams.screen.center(2);
 w = expParams.screen.width;
 h = expParams.screen.height;
 
+calledBrubeck = false;
+
 try % begin try for experiment after init exp
     % begin eye tings
     gazeFile = fullfile(expParams.subjPaths.eyeDir, sprintf('%s_p2_gaze.mat', subjID));
@@ -171,6 +173,11 @@ stimDur = expParams.p2.options.stimulusDuration;    % 0.1 s
     for i = 1:length(stimulusSequence) % use 'i' counter for stimuli
         % begin pupillometry data collection
 
+    if ~calledBrubeck && currentBlock == ceil(numBlocks/2)
+        take5Brubeck(window, expParams);
+        calledBrubeck = true;    
+    end
+
         % lets check timings...
 
         tStart = tic;
@@ -202,8 +209,7 @@ stimDur = expParams.p2.options.stimulusDuration;    % 0.1 s
         if trialInfo.blockNum ~= currentBlock || trialInfo.phaseNum ~= currentPhase
             if trialInfo.blockNum ~= currentBlock
                 currentBlock = trialInfo.blockNum;
-                fprintf('\n--- Starting Block %d: Tableau set for piece "%s" ---\n', currentBlock, trialInfo.tableauPieceName);
-                if currentBlock > 1, take5Brubeck(window, expParams); end
+                fprintf('\n--- Starting Block %d: Tableau set for piece "%s" ---\n', currentBlock, trialInfo.tableauPieceName); 
             end
             currentPhase = trialInfo.phaseNum;
             tableauToDisplay = tableaus(strcmp({tableaus.piece}, trialInfo.tableauPieceName) & strcmp({tableaus.condition}, trialInfo.tableauConditionDisplayed));
@@ -257,6 +263,9 @@ WaitSecs(itiDur);
 
         % append recent gazeData
         trialDur(i) = toc(tStart);
+
+
+
     end % end of stimulus sequence
 
     %% save BEHAVIORAL data at the very end
