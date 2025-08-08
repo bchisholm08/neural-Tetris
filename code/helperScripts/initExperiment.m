@@ -307,6 +307,15 @@ if demoMode
     expParams.p5.replayCount = [];
     expParams.p5.blockSize = expParams.visual.blockSize; % global
 
+
+    expParams.p1.options.blocks = 4;
+    expParams.p1.options.trialsPerBlock = 5;
+    expParams.p1.options.totalP1Trials = expParams.p1.options.blocks * expParams.p1.options.trialsPerBlock;
+
+    expParams.p2.options.blocks = 7;
+    expParams.p2.options.trialsPerBlock = 6; %  MUST BE A MULTIPLE OF 6 FOR EXP TO WORK
+    expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
+
     % other p5 options
     expParams.p5.saveBoardSnapShot = 1; % manual setting, will save boardsnap shots to designated folder
     expParams.p5.gameplayCount = 0; % init for later counting...
@@ -372,7 +381,6 @@ else
         error('Tobii Eye Tracker initialization failed: %s', tobiiME.message);
     end
 
-
     %% init EEG
     try
         fprintf('Initializing EEG trigger system (io64)...\n');
@@ -399,24 +407,21 @@ else
 
     %% real exp trials and blocks
     expParams.p1.options.blocks = 7;
-    expParams.p1.options.trialsPerBlock = 70;
+    expParams.p1.options.trialsPerBlock = 50; % reduced from 70 to 50 8/8/25
     expParams.p1.options.totalP1Trials = expParams.p1.options.blocks * expParams.p1.options.trialsPerBlock;
     % p1, 490 total trials, 15 or so min
+
 
     expParams.p2.options.blocks = 7;
     expParams.p2.options.trialsPerBlock = 180; %  MUST BE A MULTIPLE OF 3 FOR EXP TO WORK; 3 conditions (fit / partial fit / does not fit)
     expParams.p2.options.totalP2Trials = expParams.p2.options.blocks * expParams.p2.options.trialsPerBlock;
+  
     % p2, 1260 total trials. Originally 210 trials per block, which is
     % almost an hour. This should be closer to 30 min
 
-    % % % expParams.p4.options.blocks = 7;
-    % % % expParams.p4.options.trialsPerBlock = 50;
-    % % % expParams.p4.options.totalP4Trials = expParams.p4.options.blocks * expParams.p4.options.trialsPerBlock;
-    % % % % p4, 350 total trials
-
     % in seconds
-    expParams.p5.options.totalTime = 4200; % 4200s = 70min
-    expParams.p5.options.phaseOne = 1200; % 1500s = 20min (1/3rd of total P5 time)
+    expParams.p5.options.totalTime = 4200; % 4200; % 4200s = 70min
+    expParams.p5.options.phaseOne =  1200; % 1500s = 20min (1/3rd of total P5 time)
 
     % other p5 options
     expParams.p5.saveBoardSnapShot = 1; % manual setting, save boardsnap shots to designated folder

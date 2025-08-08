@@ -73,6 +73,9 @@ try
             end
             HideCursor();
         end
+    
+        HideCursor();
+
     end % pre-experiment checks
 
     %% run exp. sections
@@ -80,41 +83,52 @@ try
     p5(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
 
     % break 1
- 
-    betweenSectionBreakScreen(window, expParams);
 
-%     % complete a calibration before going into final half
-%     if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
-%         fprintf('Recalibrating eye tracker...\n');
-%         DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
-%         Screen('Flip', window);
-%         KbName('UnifyKeyNames');
-%         spaceKey = KbName('SPACE');
-%         KbWait(-1, 2); % Wait for key release before proceeding. why not just wait(.5)  ?
-%         while true % wait for space
-%             [~, ~, keyCode] = KbCheck;
-%             if keyCode(spaceKey)
-%                 break;
-%             end
-%         end
-%         calibrateTobii(window, windowRect, eyetracker, expParams);
-%         fprintf('Recalibration complete.\n');
-%     end
+    betweenSectionBreakScreen(window, expParams);
 
     % add a half way pause screen to switch EEG recording...
     Screen('TextSize', window, 36);
     Screen('TextFont', window, 'Arial');
     
-    halfMsg = sprintf(['Halfway Reached!\n\n' ...
-        'Please wait for experimenter....\n\n']);
+    % % halfMsg = sprintf(['Halfway Reached!\n\n' ...
+    % %     'Please wait for experimenter....\n\n']);
+    % % DrawFormattedText(window, halfMsg, 'center', 'center', expParams.colors.white);
+    % % Screen('Flip', window);
+    % % RestrictKeysForKbCheck(KbName('c'));
+    % % KbReleaseWait;
+    % % KbWait([], 2);
+    % % RestrictKeysForKbCheck([]);
+    % % KbReleaseWait;
+ 
+    
+    doneWithHalfwayBreak = false;
+
+    cKey = KbName('c');
+
+while ~doneWithHalfwayBreak
+    % Draw your message
+    halfMsg = [ 'Halfway Reached!' newline newline ...
+        'Please wait for experimenter...'];
     DrawFormattedText(window, halfMsg, 'center', 'center', expParams.colors.white);
     Screen('Flip', window);
-    RestrictKeysForKbCheck(KbName('c'));
-    KbReleaseWait;
-    KbWait([], 2);
-    RestrictKeysForKbCheck([]);
-    KbReleaseWait;
- 
+    
+    % Restrict so only 'c' is reported
+    RestrictKeysForKbCheck(cKey);
+    KbReleaseWait;                   % clear out any previous key presses
+    
+    % Wait until 'c' is pressed (second arg = 2 → ignore key‐up events)
+    [secs, keyCode] = KbWait([], 2);
+    
+    % If it really was 'c', break out
+    if keyCode(cKey)
+        doneWithHalfwayBreak = true;
+    end
+    
+    RestrictKeysForKbCheck([]);      % lift the restriction
+    KbReleaseWait;                   % clear that final key‐up
+end
+
+
     % % if ~demoMode && ~isempty(eyetracker) % Check calibrationData is not empty
     % %     fprintf('Recalibrating eye tracker before 4-AFC...\n');
     % %     DrawFormattedText(window, 'Preparing for Eye Tracker Recalibration...\n\nPress SPACE to start.', 'center', 'center', expParams.colors.white);
@@ -132,81 +146,27 @@ try
     % %     fprintf('Recalibration complete.\n');
     % % end
 
-    for countdown = 3:-1:1
-        DrawFormattedText(window, sprintf('Get Ready For Part II!\n\n%d', countdown), ...
-            'center', 'center', expParams.colors.white);
-        Screen('Flip', window);
-        WaitSecs(1);
-    end
 
-    % % p1,  piece presentation
+
+    % p1,  piece presentation
     p1(subjID, demoMode, window, windowRect, expParams, ioObj, address, eyetracker);
-    
+
     % break 1
     betweenSectionBreakScreen(window, expParams);
 
-    % p2, pieces in context / tableaus
+    % p2, pieces in tableaus
     p2(subjID, demoMode, expParams, ioObj, address, eyetracker);
 
     showEndScreen(window, expParams); % thank participant and exit
 
-
 catch ME
 
-    % clean up ptb when error
+    % clean up ptb if error
     sca;
     ShowCursor;
     Priority(0);
     Screen('CloseAll');
-    % try to clear port if crash
-    %  io64(ioObj, address, 0);
 
-
-    % commented out below code on 6/19. Seems pointless. There is no
-    % logical reason to check if EEG port and Tobii work if we've
-    % already entered the catchME part of the code. Something else has
-    % already gone terribly wrong at that point for a crash to happen.
-    % HOWEVER SHOULD KEEP UNTIL REAL EXP MODE WORKS I.E. DO NOT DELTE
-
-    % % Check if ioObj exists and is not empty before trying to use it
-    % if exist('ioObj', 'var') && ~isempty(ioObj)
-    %     % Further check if io64 can be called safely
-    %     % This might depend on how io64 handles an uninitialized/invalid object
-    %     % Assuming io64(ioObj) would error if ioObj is [] but not a proper object
-    %     % A more robust check might involve checking the 'status' from io64 if available
-    %     % or simply ensuring it's a valid object of the expected type.
-    %     % For now, the exist and ~isempty check is a good first step.
-    %     try
-    %         if io64(ioObj) == 0 % Check if ioObj is valid and connection is open
-    %             io64(ioObj, address, 0); % Send a zero trigger to reset parallel port
-    %         end
-    %     catch ioCleanupME
-    %         warning('Could not clean up ioObj: %s', ioCleanupME.message);
-    %     end
-    % end
-    %
-    % % Check if eyetracker exists and is not empty before trying to use it
-    % if exist('eyetracker', 'var') && ~isempty(eyetracker)
-    %     try
-    %         % Assuming tetio_stopTracking, tetio_disconnectTracker, tetio_cleanUp
-    %         % are the correct functions and are on the path.
-    %         % These might need to be called conditionally based on eyetracker state.
-    %         % For example, check if eyetracker is an object and has a 'is_tracking' property
-    %         % if eyetracker.is_tracking % (Example, actual property name may vary)
-    %         %    eyetracker.stop_gaze_data();
-    %         % end
-    %         % eyetracker.disconnect();
-    %
-    %         % Using the functions mentioned in previous version:
-    %         tetio_stopTracking(); % Stop Tobii tracking if active (ensure this is safe to call if not tracking)
-    %         tetio_disconnectTracker(); % Disconnect Tobii
-    %         tetio_cleanUp(); % Clean up Tobii SDK
-    %     catch tetioME
-    %         warning('Tobii cleanup failed: %s', tetioME.message);
-    %     end
-    % end
-
-    % Re-throw the error to display details in the command window
     rethrow(ME);
 end
 

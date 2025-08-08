@@ -22,12 +22,14 @@ This repository contains the code for a four-part experimental paradigm that int
 An overall theme of this experiment is that is increases in complexity throughout. In scripts and functions (LINK HERE) see `p1.m`, `p2.m`, `p4.m` and `p5.m` for more detail on each section.  
 
 ## Repository Structure
-```  
+```
 /  
 ├── code/  
-│   ├── humanTetrisWrapper.m # handles entire experiment
-│   ├── helperScripts/   # Utility functions  
-│   └── initExperiment.m # Experiment initialization 
+│   ├── humanTetrisWrapper.m # handles running entire experiment
+│   ├── helperScripts/   # support functions to run experiment 
+│       |── initExperiment.m 
+│       |── p1.m
+│       |── etc...
 ├── data/                # Generated data folders per subject  
 └── README.md            # This file  
 ```
@@ -51,6 +53,14 @@ An overall theme of this experiment is that is increases in complexity throughou
     <th>Date</th>
     <th>What Changed</th>
   </tr>
+    <tr>
+    <td> 7/22/2025 </td>
+    <td> First participant data collected! </td>
+  </tr>
+    <tr>
+    <td> 7/14/2025 </td>
+    <td> Human EEG & pupillometry pilots </td>
+  </tr>
   <tr>
     <td> 6/20/2025 </td>
     <td> Behavioral portion of the experiment is complete. Minor fixes are needed to prepare for data collection. </td>
@@ -73,17 +83,18 @@ An overall theme of this experiment is that is increases in complexity throughou
 Each participant is run with one single function call to a wrapper. This will run all experiment sections, give instructions, save data, and close everything at the end. 
 
 The experimenter should only *have* to enter the room if the participant requests it. 
-```matlab
-subjID = 's01'; 
-demoMode = 0; 
-humanTetrisWrapper(subjID, demoMode);
 
+For running with demoMode ON...
+```matlab
+humanTetrisWrapper("P01")
 ```  
 
+For running with demoMode OFF...
+```matlab
+humanTetrisWrapper("P01",0)
+```  
 
  ***NOTE:*** Wrapper function **defaults** to demoMode == 1. This will  bypass EEG/eye‑tracker data collection and run purely the behavioral portion of the experiment. This will still save `.csv` data files. 
- 
- Data from P1 and P2 is not anything worth analyzing, however P4 will provide interesting response data.  
 
 ## Scripts & Functions
 ## Experiment Function Reference

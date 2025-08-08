@@ -2,11 +2,7 @@ function p5(subjID, demoMode, window, windowRect, expParams, ioObj, address, eye
 try
     % init event log
 
-    eventLog = struct('timestamp',{},'systemTS',{},'eventType',{},'val1',{},'val2',{});
-
-    if demoMode
-        ShowCursor;
-    end
+   % eventLog = struct('timestamp',{},'systemTS',{},'eventType',{},'val1',{},'val2',{});
 
     %% INSTRUCTIONS
     p5instruct(window, expParams);
@@ -32,7 +28,12 @@ try
         [playFile, newInfo, gameLog] = playOneTetrisGame(expParams);
         assert(isequal(fieldnames(newInfo), fieldnames(tmp)), ...
             'playOneTetrisGame returned unexpected fields');
-        eventLog = [eventLog; gameLog(:)];
+       %  eventLog = [eventLog; gameLog(:)];
+           % ——————————— SAVE PLAY EVENTS IMMEDIATELY ———————————
+    filename = sprintf('p5_playEvents_g%d', gameCount);
+    saveDat(filename, subjID, gameLog, expParams, demoMode);
+    % —————————————————————————————————————————————————————
+
         snapshotFiles{end+1}    = playFile;
         activSessionInfo(end+1) = newInfo;
 
@@ -94,8 +95,12 @@ try
             % WaitSecs(1.5) % for me
             expParams.p5.gameplayCount = gameCount;
             [playFile, newInfo, gameLog] = playOneTetrisGame(expParams);
-            eventLog = [eventLog; gameLog(:)];            % append game's events
+           % eventLog = [eventLog; gameLog(:)];            % append game's events
             assert(isequal(fieldnames(newInfo), fieldnames(tmp)), 'playOneTetrisGame returned unexpected fields');
+    % ——————————— SAVE PLAY EVENTS IMMEDIATELY ———————————
+    filename = sprintf('p5_playEvents_g%d', gameCount);
+    saveDat(filename, subjID, gameLog, expParams, demoMode);
+    % —————————————————————————————————————————————————————
 
             snapshotFiles{end+1}    = playFile;
             activSessionInfo(end+1) = newInfo;
@@ -119,7 +124,7 @@ try
             Screen('TextSize', window, 36);
             Screen('TextFont', window, 'Arial');
             fprintf('Replaying game #%d (%s)\n', activSessionInfo(sel).gameNum, activSessionInfo(sel).boardFile);
-            DrawFormattedText(window, sprintf('Coin Flip was Tails!\n\nGet ready to watch your game #%d back!', ...
+            DrawFormattedText(window, sprintf('Coin Flip was Tails!\n\nGet ready to watch game #%d back!', ...
                 activSessionInfo(sel).gameNum), ...
                 'center', 'center', expParams.colors.white);
             Screen('Flip', window);
@@ -138,7 +143,7 @@ try
     fprintf('\n==========================\n\np5: Section complete. Saving data...\n==========================\n\n');
     expParams.p5.gameplayCount = gameCount - 1;
     expParams.p5.sessionInfo = activSessionInfo;
-    saveDat('p5_events', subjID, eventLog, expParams, demoMode);
+    % saveDat('p5_events', subjID, eventLog, expParams, demoMode);
     expParams.p5.options.sectionDoneFlag = 1;
 catch ME
     fprintf(2, 'ERROR IN p5 at %s:%d -- %s\n', ME.stack(1).name, ME.stack(1).line, ME.message);

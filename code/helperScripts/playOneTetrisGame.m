@@ -227,9 +227,9 @@ try
             );
 
         % debug print
-        if demoMode
-            fprintf('Trigger: %d at %.4f\n', currentEEGTrig, frameStamp);
-        end
+        % if demoMode
+        %     fprintf('Trigger: %d at %.4f\n', currentEEGTrig, frameStamp);
+        % end
     end % while end
 
     % end game; so save the rest
@@ -305,7 +305,7 @@ try
         'usedForReplay', false);
 
     % send game over
-    DrawFormattedText(window, sprintf('Game Over!\n\nFinal Score: %d\n\nPlease wait.....', S.currentScore), 'center', 'center', [255 0 0]);
+    DrawFormattedText(window, sprintf('Game Over!\n\nFinal Score: %d\n\nPlease wait, saving data.....', S.currentScore), 'center', 'center', [255 0 0]);
     Screen('Flip', window);
 
     % save gaze file
@@ -363,8 +363,10 @@ end % try end (for eye tracker)
                 end;end
 
             % print for debugging
+            if demoMode
             fprintf('[LOGGED] Event: %-15s → %3d @ %.4f\n', eventType, trigVal, GetSecs()); % getsecs call was printing as "ans = " in cmd window. I think calling as a function () fixes this
-
+            end 
+            
             lastEEGTrig = trigVal;
         else
             lastEEGTrig = NaN;

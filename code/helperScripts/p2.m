@@ -188,8 +188,8 @@ stimDur = expParams.p2.options.stimulusDuration;    % 0.1 s
                 warning('Mid-loop gaze error: %s', raw.Message);
                 raw = [];
             end
-            for i = 1:numel(raw)
-                s = raw(i);
+            for g  = 1:numel(raw)
+                s = raw(g);
 
                 blockGazeData(end+1) = struct( ...
                     'SystemTimeStamp', s.SystemTimeStamp, ...
@@ -202,7 +202,7 @@ stimDur = expParams.p2.options.stimulusDuration;    % 0.1 s
 
             end
         end
-        trialInfo = stimulusSequence(i); % get curr 'i' from stimuli
+       trialInfo = stimulusSequence(i); % get curr 'i' from stimuli
 
 
         % start of block tasks

@@ -55,7 +55,7 @@ try %% main exp. try/C
 
     pieces = getTetrino(expParams);
     nPieces = length(pieces);
-
+    ShowCursor;
     presentationPieceOrder = randi(nPieces, 1, expParams.p1.options.totalP1Trials);
     % returns random list of numbers from 1 to 7, for the number of totalP1Trials input
     nTotalTrials = expParams.p1.options.totalP1Trials;

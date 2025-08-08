@@ -159,7 +159,7 @@ for k = 1:length(snapshots) % for length of snapshots...(not frames--as a matter
         io64(ioObj, address, replayTrig + 100);
         end 
         
-        fprintf('[REPLAY] Trigger → %3d @ %.4f\n', replayTrig + 100, GetSecs); 
+      %  fprintf('[REPLAY] Trigger → %3d @ %.4f\n', replayTrig + 100, GetSecs); 
         
     end
 
@@ -222,7 +222,10 @@ end % snapshots replay loop end
     lossL = mean([blockGazeData.PupilDiaL] == 0);
     lossR = mean([blockGazeData.PupilDiaR] == 0);
 	
-	
+    % added screen 7/29/
+    DrawFormattedText(window, sprintf('Game Over!\n\n Please wait, saving data.....'), 'center', 'center', [255 0 0]);
+    Screen('Flip', window);
+
 	% save gaze file 
     save(gazeFile, ... % named @ top of script 
         'blockGazeData', ...
